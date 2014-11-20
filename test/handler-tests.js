@@ -2,7 +2,7 @@ module('handler tests');
 
 test('normal lambda', function() {
 	
-	var template = '<p id="template">{{#exec}}{{arguments}}{{/exec}}</p>',
+	var template = '<p id="template">{{#exec}}argument1 argument2{{/exec}}</p>',
 		modelA = {exec: execute, arguments: 'one'},
 		modelB = {exec: execute, arguments: 'two'};
 
@@ -32,7 +32,7 @@ test('normal lambda', function() {
 
 test('simple handler', function() {
 	
-	var template = '<p id="template">{{exec arguments}}</li></ul></p>',
+	var template = '<p id="template">{{exec argument1 argument2}}</li></ul></p>',
 		modelA = {name: 'one'},
 		modelB = {name: 'two'};
 
