@@ -28,13 +28,6 @@ this.Rebind = this.Rebind || {};
 
 (function(o) {
 
-	//Recurse through the source dom tree and compare to target, generating all required changes
-	o.merge = function(source, target) {
-
- 		//Begin recursive call into source making changes to target
- 		mergeNodes(source, target, target.parentNode, 0, 0);
- 	}
-
  	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
  	//This allows us to leave the mustache.js source as is without modifications
  	//And still get the extra semantics needed to work out dom insertions and deletions
@@ -74,7 +67,7 @@ this.Rebind = this.Rebind || {};
 
 			//Close control token
 			if (isSection) {
-				var inject = ['text', '<!--/-->', branch[i][2], branch[i][3]];
+				var inject = ['text', '<!--/-->', token[2], token[3]];
 				branch.splice(i, 0, inject);
 
 				i++;
@@ -82,8 +75,8 @@ this.Rebind = this.Rebind || {};
 		}
 	}
 
-	//Apply changes in source to target as a list of memoized actions
-	function mergeNodes(source, target, targetParent, level, index) {
+	//Recurse through the source dom tree and apply changes to the target
+	o.mergeNodes = function(source, target, targetParent, level, index) {
 
 		console.log('Comparing nodes - source:' + (source && source.tagName) + ', target:' + (target && target.tagName) + ' at level: ' + level + ', index: ' + index);
 
@@ -170,6 +163,8 @@ this.Rebind = this.Rebind || {};
 
 						console.log('+ Clone and added node with id: ' + id);
 						targetParent.insertBefore(clone, bound);
+
+						targetIdx++;
 					}
 
 					idx++;
@@ -183,6 +178,10 @@ this.Rebind = this.Rebind || {};
 
 					sourceIdx ++;
 				}
+			}
+			else {
+				//Normal comments, just update
+				target.nodeValue = source.nodeValue
 			}
 
 			return;
@@ -200,8 +199,11 @@ this.Rebind = this.Rebind || {};
 			return;
 		}
 
-		//TODO: element tagName changes here
-
+		//Element tagName changes ie <{{name}} ... >
+		if (source.tagName !== target.tagName) {
+			targetParent.replaceChild(source.cloneNode(true), target);
+			return;
+		}
 
 		//Iterate through any child nodes
 		var length = (source.childNodes.length < target.childNodes.length) ? target.childNodes.length : source.childNodes.length;
@@ -212,7 +214,7 @@ this.Rebind = this.Rebind || {};
 
 			//Now loop recursively.
 			for (var i = 0; i<length; i++) {
-				mergeNodes(source.childNodes[i], target.childNodes[i], target, level + 1, i);
+				o.mergeNodes(source.childNodes[i], target.childNodes[i], target, level + 1, i);
 			}
 
 			if (source.isEqualNode(target)) return;

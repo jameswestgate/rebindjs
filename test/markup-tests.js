@@ -126,6 +126,15 @@ test('dom element multiple remove test ', function() {
 	runTest(template, modelA, modelB);
 });
 
+test('dom element add remove test ', function() {
+	
+	var template = '<div id="template"><ul>{{#names}}<li>{{name}}</li>{{/names}}</ul></div>',
+		modelA = {names: [{name:'one'}, {name:'two'}, {name:'three'}]},
+		modelB = {names: [{name:'zero'}, {name:'one'}, {name:'two'}]};
+
+	runTest(template, modelA, modelB);
+});
+
 test('dom element text remove test', function() {
 	
 	var template = '<div id="template">{{text}}<ul><li>{{text2}}</li></ul></div>',
@@ -152,6 +161,43 @@ test('text node change test', function() {
 
 	runTest(template, modelA, modelB);
 });
+
+test('tagname change test', function() {
+	
+	var template = '<div id="template"><{{tagname}}>hello world</{{tagname}}></div>',
+		modelA = {tagname: 'b'},
+		modelB = {tagname: 'i'};
+
+	runTest(template, modelA, modelB);
+});
+
+test('comment change test', function() {
+	
+	var template = '<div id="template"><!--{{comment}}--></div>',
+		modelA = {comment: 'hello world'},
+		modelB = {comment: 'hello again'};
+
+	runTest(template, modelA, modelB);
+});
+
+test('conditional enabled test', function() {
+	
+	var template = '<div id="template">{{#include}}<p>{{comment}}</p>{{/include}}</div>',
+		modelA = {comment: 'hello world', include: true},
+		modelB = {comment: 'hello again', include: true};
+
+	runTest(template, modelA, modelB);
+});
+
+test('conditional switch test', function() {
+	
+	var template = '<div id="template">{{#include}}<p>{{comment}}</p>{{/include}}</div>',
+		modelA = {comment: 'hello world', include: true},
+		modelB = {comment: 'hello again', include: false};
+
+	runTest(template, modelA, modelB);
+});
+
 
 function runTest(template, modelA, modelB) {
 
@@ -184,7 +230,7 @@ function runTest(template, modelA, modelB) {
 	console.log('[[ node B:' + divB.innerHTML + ' ]]');
 
 	//Now merge and test (the newer markup is the source)
-	Rebind.merge(divB.firstChild, divA.firstChild);
+	Rebind.mergeNodes(divB.firstChild, divA.firstChild, divA, 0, 0);
 
 	console.log('--> source: ' + divA.innerHTML);
 	console.log('--> target: ' + divB.innerHTML);
