@@ -79,7 +79,6 @@ function runTest(template, modelA, modelB) {
 		tokens = writer.parse(template);
 
 	//Ninject control flow comment tokens
-	console.log('Calling ninject...');
 	Rebind.ninject(tokens);
 
 	//Create contexts around the two views provided

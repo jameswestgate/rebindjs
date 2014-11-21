@@ -28,12 +28,65 @@ this.Rebind = this.Rebind || {};
 
 (function(o) {
 
+	var writer = new Mustache.Writer(),
+		cache = {},
+		id = 0;
+
+	//Extract the template from the element, 
+	o.bind = function(element, view) {
+		
+		var template = element.innerHTML,
+			tokens = writer.parse(template);
+
+		//Add control flow comment tokens
+		Rebind.ninject(tokens);
+
+		//Render markup and apply to target element
+		element.innerHTML = writer.renderTokens(tokens, new Mustache.Context(view), null, template);
+
+		//Cache template and token for future merges
+		var key = element.id;
+
+		if (!key || !key.length) {
+			key = 'id' + id;
+			element._rebindId = 'id' + id;
+
+			id++;
+		}
+
+		cache[key] = {template: template, tokens: tokens};
+	}
+	
+	o.merge = function(element, view) {
+
+		var div = document.createElement('div'),
+			key = element._rebindId || element.id;
+
+		//Document fragments require a child node to add innerHTML
+		document.createDocumentFragment().appendChild(div);
+
+		//Render the view into the div
+		div.innerHTML = writer.renderTokens(cache[key].tokens, new Mustache.Context(view), null, cache[key].template);
+	
+		//Now merge and test (the newer markup is the source)
+		o.mergeNodes(div.firstChild, element.firstChild, element, 0, 0);
+ 	}
+
+ 	//Determine if the element template has been rendered yet and call appropriately
+ 	o.render = function(element, view) {
+
+ 		var key = element.id,
+ 			method = ((key && key.length) ? cache[key] : element._rebindId) ? 'merge' : 'bind';
+
+		o[method](element, view);
+ 	}
+
  	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
  	//This allows us to leave the mustache.js source as is without modifications
  	//And still get the extra semantics needed to work out dom insertions and deletions
 
- 	//Check mustache names with spaces are preserved in the tree
- 	//if so, expand {{format x y z}} to {{#format}}x y z{{/format}} - if helper registered
+ 	//Helpers - expand name tokens with spaces into lambdas
+ 	//eg {{format x y z}} to {{#format}}x y z{{/format}} - if helper registered
 	o.ninject = function(branch) {
 
 		var i = 0;
@@ -239,7 +292,6 @@ this.Rebind = this.Rebind || {};
 		}		
 	}
 
-	//-- Implementation --
 
 	//Starting with the comment node 
 	function getSectionEnd(node) {
