@@ -1,5 +1,6 @@
 Rebind js
 =========
 
-Continuous two way binding for content created with the mustache.js templating engine, without overwriting the DOM.
+Continuous data binding for content created with  Mustache templating. 
+Uses plain Javascript objects to modify existing DOM elements.
 

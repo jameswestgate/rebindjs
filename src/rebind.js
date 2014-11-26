@@ -22,6 +22,7 @@ this.Rebind = this.Rebind || {};
 		Rebind.ninject(tokens);
 
 		//Render markup and apply to target element
+		//TODO: add context and view to cache
 		element.innerHTML = writer.renderTokens(tokens, new Mustache.Context(view), null, template);
 
 		//Cache template and token for future merges
@@ -61,6 +62,12 @@ this.Rebind = this.Rebind || {};
 		o[method](element, view);
  	}
 
+
+ 	//TODO: add registerHelper
+ 	//http://handlebarsjs.com/#helpers
+
+ 	//TODO: add injectHelpers (injects into a context)
+
  	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
  	//This allows us to leave the mustache.js source as is without modifications
  	//And still get the extra semantics needed to work out dom insertions and deletions
@@ -80,18 +87,20 @@ this.Rebind = this.Rebind || {};
 			//Handler
 			if (isHandler) {
 
+				//TODO: check that helper has been registered
+
 				//Rewrite token as a lambda function call
 				var values = token[1].split(' '),
 					end = token[3],
-					bound = token[2] + values[0].length + 5, //{{}} + 1
+					bound = token[2] + values[0].length + 3, //{{+
 					func = values.shift(),
 					args = values.join(' ');
 
 				token[0] = '#';
 				token[1] = func;
 				token[3] = bound; 
-				token.push(['name', args, bound, end]);
-				token.push(end);
+				token.push(['name', args, bound, end - 2]);
+				token.push(end - 2);
 			}
 
 			//Control token
@@ -123,25 +132,27 @@ this.Rebind = this.Rebind || {};
 		//Source and target can be null if text node was removed
 		if (!source && !target) return;
 
+		//Cahce node types
+		var sourceType = source && source.nodeType,
+			targetType = target && target.nodeType;
+
 		//Text node insertion
-		if (source && source.nodeType === 3 && (!target || target.nodeType !==3)) {
+		if (sourceType === 3 && (!target || targetType !==3)) {
 			
 			//Text node insertion
-			var clone = source.cloneNode(false);
-
 			if (!target) {
 				console.log('+ Cloned and inserted text node for empty target.');
-				targetParent.appendChild(clone);
+				targetParent.appendChild(source.cloneNode(false));
 			}
 			else {
 				console.log('+ Cloned and inserted text node before target.');
-				targetParent.insertBefore(clone, target);
+				targetParent.insertBefore(source.cloneNode(false), target);
 			}
 			return;
 		}
 			
 		//Text node removal
-		if (target && target.nodeType === 3  && (!source || source.nodeType !==3)) {
+		if (targetType === 3  && (!source || sourceType !==3)) {
 
 			console.log('- Remove text node from target.');
 			targetParent.removeChild(target);
@@ -153,7 +164,7 @@ this.Rebind = this.Rebind || {};
 		}
 
 		//Detect if we have hit the start of a section
-		if (source.nodeType === 8 && target.nodeType === 8) {
+		if (sourceType === 8 && targetType === 8) {
 			
 			if (source.nodeValue === '#') {
 				
@@ -163,7 +174,7 @@ this.Rebind = this.Rebind || {};
 
 				//Some kind of failure, return
 				if (!sourceIdx || !targetIdx) {
-					console.warn('rebind.js: Could not find end of section.');
+					console.log('rebind.js: Could not find end of section.');/*RemoveLogging:skip*/
 				}
 
 				//Load all elements in the target between source and targetidx's into an associative array by id
@@ -230,7 +241,7 @@ this.Rebind = this.Rebind || {};
 		if (source.isEqualNode(target)) return;
 
 		//Compare text nodes
-		if (source.nodeType === 3 && target.nodeType === 3) {
+		if (sourceType === 3 && targetType === 3) {
 			
 			console.log('> Push text values - source:' + source.nodeValue + ', target:' + target.nodeValue);
 			target.nodeValue = source.nodeValue;

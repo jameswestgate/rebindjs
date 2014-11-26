@@ -699,7 +699,7 @@ this.Rebind = this.Rebind || {};
 	//Recurse through the source dom tree and apply changes to the target
 	o.mergeNodes = function(source, target, targetParent, level, index) {
 
-		
+		console.log('Comparing nodes - source:' + (source && source.tagName) + ', target:' + (target && target.tagName) + ' at level: ' + level + ', index: ' + index);
 
 		//Source and target can be null if text node was removed
 		if (!source && !target) return;
@@ -713,11 +713,11 @@ this.Rebind = this.Rebind || {};
 			
 			//Text node insertion
 			if (!target) {
-				
+				console.log('+ Cloned and inserted text node for empty target.');
 				targetParent.appendChild(source.cloneNode(false));
 			}
 			else {
-				
+				console.log('+ Cloned and inserted text node before target.');
 				targetParent.insertBefore(source.cloneNode(false), target);
 			}
 			return;
@@ -726,7 +726,7 @@ this.Rebind = this.Rebind || {};
 		//Text node removal
 		if (targetType === 3  && (!source || sourceType !==3)) {
 
-			
+			console.log('- Remove text node from target.');
 			targetParent.removeChild(target);
 
 			if (!source) return;
@@ -777,13 +777,13 @@ this.Rebind = this.Rebind || {};
 
 						if (existing !== bound) {
 
-							
+							console.log('^ Move mode with id:' + id + ' before:' + bound);
 							targetParent.insertBefore(existing, bound);
 						}
 					}
 					else {
 
-						
+						console.log('+ Clone and added node with id: ' + id);
 						targetParent.insertBefore(node.cloneNode(true), bound);
 
 						targetIdx++;
@@ -795,7 +795,7 @@ this.Rebind = this.Rebind || {};
 				//Remove any tail nodes in the target
 				while (sourceIdx < targetIdx) {
 					
-					
+					console.log('- Removed node at index:' + idx);
 					targetParent.removeChild(targetParent.childNodes[idx]);
 
 					sourceIdx ++;
@@ -815,7 +815,7 @@ this.Rebind = this.Rebind || {};
 		//Compare text nodes
 		if (sourceType === 3 && targetType === 3) {
 			
-			
+			console.log('> Push text values - source:' + source.nodeValue + ', target:' + target.nodeValue);
 			target.nodeValue = source.nodeValue;
 
 			return;
@@ -824,7 +824,7 @@ this.Rebind = this.Rebind || {};
 		//Element tagName changes ie <{{name}} ... >
 		if (source.tagName !== target.tagName) {
 			
-			
+			console.log('> Tag replacement: ' + target.tagName + ' -> ' + source.tagName);
 			targetParent.replaceChild(source.cloneNode(true), target);
 			return;
 		}
@@ -854,7 +854,7 @@ this.Rebind = this.Rebind || {};
 
 				if (target.getAttribute(name) !== value) {
 					
-					
+					console.log('+ Push attribute values for:' + name + ' - source:'+ attributes[i].nodeValue + ', target:' + target.attributes[i].nodeValue);
 					target.setAttribute(name, value);
 				}
 			}

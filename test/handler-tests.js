@@ -4,8 +4,8 @@
 	test('normal lambda', function() {
 		
 		var template = '<p id="template">{{#exec}}argument1 argument2{{/exec}}</p>',
-			modelA = {exec: execute, arguments: 'one'},
-			modelB = {exec: execute, arguments: 'two'};
+			modelA = {exec: getFunction, arguments: 'one'},
+			modelB = {exec: getFunction, arguments: 'two'};
 
 		var writer = new Mustache.Writer(),
 			tokens = writer.parse(template);
@@ -30,8 +30,8 @@
 	test('simple handler', function() {
 		
 		var template = '<p id="template">{{exec argument1 argument2}}</p>',
-			modelA = {exec: execute, arguments: 'one'},
-			modelB = {exec: execute, arguments: 'two'};
+			modelA = {arguments: 'one'},
+			modelB = {arguments: 'two'};
 
 		var writer = new Mustache.Writer(),
 			tokens = writer.parse(template);
@@ -41,6 +41,9 @@
 
 		var contextA = new Mustache.Context(modelA),
 			contextB = new Mustache.Context(modelB);
+
+		contextA.view.exec = getFunction;
+		contextB.view.exec = getFunction;
 
 		//Now manually render both views into the document fragments
 		var outputA = writer.renderTokens(tokens, contextA, null, template),
@@ -52,11 +55,12 @@
 		ok(tokens);
 	});
 
-	function execute() {
-		console.log('Returning EXEC:');
-		return function(text, render) {
-			console.log('Calling EXEC:');
-			return 'Hello world: ' + text;
-		}
+	//Called with no arguments
+	function getFunction() {
+		return doExecute;
+	}
+
+	function doExecute(text, render) {
+		return text;
 	}
 })();

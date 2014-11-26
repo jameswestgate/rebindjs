@@ -12,7 +12,13 @@ module.exports = function(grunt) {
 				// the files to concatenate
 				src: ['bower_components/mustache/mustache.js', 'src/**/*.js'],
 				// the location of the resulting JS file
-				dest: 'build/<%= pkg.name %>.js'
+				dest: 'dist/<%= pkg.name %>.js'
+			}
+		},
+		removelogging: {
+			dist: {
+			  src: "dist/<%= pkg.name %>.js",
+			  dest: "build/<%= pkg.name %>.js",
 			}
 		},
 		uglify: {
@@ -21,7 +27,7 @@ module.exports = function(grunt) {
 			},
 			build: {
 				src: 'build/<%= pkg.name %>.js',
-				dest: 'build/<%= pkg.name %>.min.js'
+				dest: 'dist/<%= pkg.name %>.min.js'
 			}
 		}
 	});
@@ -29,8 +35,10 @@ module.exports = function(grunt) {
 	// Load the plugin that provides the "uglify" task.
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-contrib-concat');
+	grunt.loadNpmTasks("grunt-remove-logging");
 
 	// Default task(s).
-	grunt.registerTask('default', ['concat', 'uglify']);
+	grunt.registerTask('debug', ['concat']);
+	grunt.registerTask('default', ['concat', 'removelogging', 'uglify']);
 
 };
