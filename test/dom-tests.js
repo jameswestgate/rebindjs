@@ -15,11 +15,11 @@
 
 		//Reset because qunit-fixture is always the same id
 		Rebind.reset();
-		Rebind.update(fixture, modelA);
+		Rebind.bind(fixture, modelA);
 
 		var element1 = $(fixture).find('li')[0];
 
-		Rebind.update(fixture, modelB);
+		Rebind.bind(fixture, modelB);
 
 		var element2 = $(fixture).find('li')[0];
 
@@ -38,12 +38,12 @@
 		$(fixture).html(template);
 
 		Rebind.reset();
-		Rebind.update(fixture, model);
+		Rebind.bind(fixture, model);
 
 		model.name = 'two';
-		Rebind.update(fixture, model);
+		Rebind.bind(fixture, model);
 
-		ok($(fixture).find("li:contains('two')").length, 'Results found.');
+		ok($(fixture).find("li:contains('two')").length, $(fixture).html());
 	});
 
 	test('model manual dom update', function() {
@@ -62,7 +62,7 @@
 		model.name = 'two';
 		Rebind.merge(fixture, model);
 
-		ok($(fixture).find("li:contains('two')").length, 'Results found.');
+		ok($(fixture).find("li:contains('two')").length, $(fixture).html());
 	});
 	
 })();

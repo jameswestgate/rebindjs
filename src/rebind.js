@@ -47,7 +47,7 @@ this.Rebind = this.Rebind || {};
 		}
 
 		//Cache template and token for future merges
-		cache[key] = {template: template, tokens: tokens, context: context};
+		cache[key] = {template: template, tokens: tokens};
 	}
 	
 	o.merge = function(element, view) {
@@ -58,27 +58,19 @@ this.Rebind = this.Rebind || {};
 		//Document fragments require a child node to add innerHTML
 		document.createDocumentFragment().appendChild(div);
 
-		//Resolve the context
-		var context = cache[key].context;
-		if (context.view !== view) {
-			context = o.getContext(view, helpers);
-			cache[key].context = context;
-
-			console.log('> view reference changed, creating new context.')
-		}
-
+		//It is easiest to get a new context rather than clear the cache.
 		//Render the view into the div
-		div.innerHTML = writer.renderTokens(cache[key].tokens, context, null, cache[key].template);
+		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(view), null, cache[key].template);
 	
 		//Now merge and test (the newer markup is the source)
 		o.mergeNodes(div.firstChild, element.firstChild, element, 0, 0);
  	}
 
  	//Determine if the element template has been rendered yet and call appropriately
- 	o.update = function(element, view) {
+ 	o.bind = function(element, view) {
 
- 		var key = element.id,
- 			method = ((key && key.length) ? cache[key] : element._rebindId) ? 'merge' : 'render';
+ 		var key = element.id || element._rebindId,
+ 			method = cache[key] ? 'merge' : 'render';
 
 		o[method](element, view);
  	}
@@ -98,6 +90,8 @@ this.Rebind = this.Rebind || {};
  				for (var i=0, len=parameters.length; i<len; i++) {
 
 					//TODO: Check string literal syntax
+					//TODO: Check nested mustaches
+
  					argsArray.push(this[parameters[i]]);
  				}
 
@@ -116,11 +110,9 @@ this.Rebind = this.Rebind || {};
  	}
 
  	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
- 	//This allows us to leave the mustache.js source as is without modifications
- 	//And still get the extra semantics needed to work out dom insertions and deletions
 
  	//Helpers - expand name tokens with spaces into lambdas
- 	//eg {{format x y z}} to {{#format}}x y z{{/format}} - if helper registered
+ 	//eg {{format x y z}} to {{#format}}x y z{{/format}}
 	o.ninject = function(branch) {
 
 		var i = 0;
@@ -133,8 +125,6 @@ this.Rebind = this.Rebind || {};
 
 			//Handler
 			if (isHandler) {
-
-				//TODO: check that helper has been registered
 
 				//Rewrite token as a lambda function call
 				var values = token[1].split(' '),
@@ -173,8 +163,6 @@ this.Rebind = this.Rebind || {};
 
 	//Recurse through the source dom tree and apply changes to the target
 	o.mergeNodes = function(source, target, targetParent, level, index) {
-
-		console.log('Comparing nodes - source:' + (source && source.tagName) + ', target:' + (target && target.tagName) + ' at level: ' + level + ', index: ' + index);
 
 		//Source and target can be null if text node was removed
 		if (!source && !target) return;
