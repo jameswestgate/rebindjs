@@ -10,10 +10,19 @@ this.Rebind = this.Rebind || {};
 
 	var writer = new Mustache.Writer(),
 		cache = {},
+		helpers = {},
+		helpersContext = new Mustache.Context(helpers);
 		id = 0;
 
+	o.reset = function() {
+		cache = {};
+		id = 0;
+		helpers = {};
+		helpersContext = new Mustache.Context(helpers);
+	}
+
 	//Extract the template from the element, 
-	o.bind = function(element, view) {
+	o.render = function(element, view) {
 		
 		var template = element.innerHTML,
 			tokens = writer.parse(template);
@@ -21,11 +30,13 @@ this.Rebind = this.Rebind || {};
 		//Add control flow comment tokens
 		Rebind.ninject(tokens);
 
-		//Render markup and apply to target element
-		//TODO: add context and view to cache
-		element.innerHTML = writer.renderTokens(tokens, new Mustache.Context(view), null, template);
+		//Create context, injecting helpers as the parent
+		var context = o.getContext(view, helpers);
 
-		//Cache template and token for future merges
+		//Render markup and apply to target element
+		element.innerHTML = writer.renderTokens(tokens, context, null, template);
+
+		//Get or generate a cache key
 		var key = element.id;
 
 		if (!key || !key.length) {
@@ -35,7 +46,8 @@ this.Rebind = this.Rebind || {};
 			id++;
 		}
 
-		cache[key] = {template: template, tokens: tokens};
+		//Cache template and token for future merges
+		cache[key] = {template: template, tokens: tokens, context: context};
 	}
 	
 	o.merge = function(element, view) {
@@ -46,27 +58,62 @@ this.Rebind = this.Rebind || {};
 		//Document fragments require a child node to add innerHTML
 		document.createDocumentFragment().appendChild(div);
 
+		//Resolve the context
+		var context = cache[key].context;
+		if (context.view !== view) {
+			context = o.getContext(view, helpers);
+			cache[key].context = context;
+
+			console.log('> view reference changed, creating new context.')
+		}
+
 		//Render the view into the div
-		div.innerHTML = writer.renderTokens(cache[key].tokens, new Mustache.Context(view), null, cache[key].template);
+		div.innerHTML = writer.renderTokens(cache[key].tokens, context, null, cache[key].template);
 	
 		//Now merge and test (the newer markup is the source)
 		o.mergeNodes(div.firstChild, element.firstChild, element, 0, 0);
  	}
 
  	//Determine if the element template has been rendered yet and call appropriately
- 	o.render = function(element, view) {
+ 	o.update = function(element, view) {
 
  		var key = element.id,
- 			method = ((key && key.length) ? cache[key] : element._rebindId) ? 'merge' : 'bind';
+ 			method = ((key && key.length) ? cache[key] : element._rebindId) ? 'merge' : 'render';
 
 		o[method](element, view);
  	}
 
+ 	//Register a helper function with Rebind. 
+ 	//The tokeniser will use this to create a lambda function and to bind helpers to views
+ 	o.registerHelper = function(name, fn) {
+ 		
+ 		helpers[name] = function() {
 
- 	//TODO: add registerHelper
- 	//http://handlebarsjs.com/#helpers
+ 			return function() {
+ 				
+ 				var parameters = arguments[0].split(' '),
+ 					argsArray = [];
 
- 	//TODO: add injectHelpers (injects into a context)
+ 				//Lookup each argument in the view context
+ 				for (var i=0, len=parameters.length; i<len; i++) {
+
+					//TODO: Check string literal syntax
+ 					argsArray.push(this[parameters[i]]);
+ 				}
+
+ 				//Add subrender as last argument
+ 				argsArray.push(arguments[1]);
+
+ 				return fn.apply(this, argsArray);
+ 			}
+ 		};
+ 	}
+
+ 	//Get a context that includes the registered helpers
+ 	o.getContext = function(view) {
+ 		
+		return new Mustache.Context(view, helpersContext);
+ 	}
 
  	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
  	//This allows us to leave the mustache.js source as is without modifications
