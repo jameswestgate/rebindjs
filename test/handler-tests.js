@@ -61,4 +61,33 @@
 		ok(outputB === '<p id="template">TWO</p>', outputB);
 	});
 
+	test('literal handler', function() {
+		
+		var template = '<p id="template">{{exec argument "hello"}}</p>',
+			modelA = {argument: 'one'},
+			modelB = {argument: 'two'};
+
+		var writer = new Mustache.Writer(),
+			tokens = writer.parse(template);
+
+		//Register the helper before the tokeniser runs
+		Rebind.registerHelper('exec', function(arg, text, render) {
+			return text + ' ' + arg.toUpperCase();
+		});
+
+		//Compile the template
+		Rebind.ninject(tokens);
+
+		var contextA = Rebind.getContext(modelA),
+			contextB = Rebind.getContext(modelB);
+
+		//Now manually render both views into the document fragments
+		var outputA = writer.renderTokens(tokens, contextA, null, template),
+			outputB = writer.renderTokens(tokens, contextB, null, template);
+
+		ok(outputA === '<p id="template">hello ONE</p>', outputA);
+		ok(outputB === '<p id="template">hello TWO</p>', outputB);
+	});
+
+
 })();

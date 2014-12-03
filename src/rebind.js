@@ -89,10 +89,12 @@ this.Rebind = this.Rebind || {};
  				//Lookup each argument in the view context
  				for (var i=0, len=parameters.length; i<len; i++) {
 
-					//TODO: Check string literal syntax
-					//TODO: Check nested mustaches
+ 					//Check for literal syntax
+					var parameter = parameters[i],
+						first = parameter.slice(0, 1),
+						last = parameter.slice(-1);
 
- 					argsArray.push(this[parameters[i]]);
+ 					argsArray.push((first === '"' && last === '"') || (first === "'" && last === "'") ? parameter.slice(1,-1): this[parameter]);
  				}
 
  				//Add subrender as last argument
