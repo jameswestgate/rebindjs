@@ -582,10 +582,19 @@ this.Rebind = this.Rebind || {};
 
 	var writer = new Mustache.Writer(),
 		cache = {},
+		helpers = {},
+		helpersContext = new Mustache.Context(helpers);
 		id = 0;
 
+	o.reset = function() {
+		cache = {};
+		id = 0;
+		helpers = {};
+		helpersContext = new Mustache.Context(helpers);
+	}
+
 	//Extract the template from the element, 
-	o.bind = function(element, view) {
+	o.render = function(element, view) {
 		
 		var template = element.innerHTML,
 			tokens = writer.parse(template);
@@ -593,11 +602,13 @@ this.Rebind = this.Rebind || {};
 		//Add control flow comment tokens
 		Rebind.ninject(tokens);
 
-		//Render markup and apply to target element
-		//TODO: add context and view to cache
-		element.innerHTML = writer.renderTokens(tokens, new Mustache.Context(view), null, template);
+		//Create context, injecting helpers as the parent
+		var context = o.getContext(view, helpers);
 
-		//Cache template and token for future merges
+		//Render markup and apply to target element
+		element.innerHTML = writer.renderTokens(tokens, context, null, template);
+
+		//Get or generate a cache key
 		var key = element.id;
 
 		if (!key || !key.length) {
@@ -607,6 +618,7 @@ this.Rebind = this.Rebind || {};
 			id++;
 		}
 
+		//Cache template and token for future merges
 		cache[key] = {template: template, tokens: tokens};
 	}
 	
@@ -618,34 +630,63 @@ this.Rebind = this.Rebind || {};
 		//Document fragments require a child node to add innerHTML
 		document.createDocumentFragment().appendChild(div);
 
+		//It is easiest to get a new context rather than clear the cache.
 		//Render the view into the div
-		div.innerHTML = writer.renderTokens(cache[key].tokens, new Mustache.Context(view), null, cache[key].template);
+		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(view), null, cache[key].template);
 	
 		//Now merge and test (the newer markup is the source)
 		o.mergeNodes(div.firstChild, element.firstChild, element, 0, 0);
  	}
 
  	//Determine if the element template has been rendered yet and call appropriately
- 	o.render = function(element, view) {
+ 	o.bind = function(element, view) {
 
- 		var key = element.id,
- 			method = ((key && key.length) ? cache[key] : element._rebindId) ? 'merge' : 'bind';
+ 		var key = element.id || element._rebindId,
+ 			method = cache[key] ? 'merge' : 'render';
 
 		o[method](element, view);
  	}
 
+ 	//Register a helper function with Rebind. 
+ 	//The tokeniser will use this to create a lambda function and to bind helpers to views
+ 	o.registerHelper = function(name, fn) {
+ 		
+ 		helpers[name] = function() {
 
- 	//TODO: add registerHelper
- 	//http://handlebarsjs.com/#helpers
+ 			return function() {
+ 				
+ 				var parameters = arguments[0].split(' '),
+ 					argsArray = [];
 
- 	//TODO: add injectHelpers (injects into a context)
+ 				//Lookup each argument in the view context
+ 				for (var i=0, len=parameters.length; i<len; i++) {
+
+ 					//Check for literal syntax
+					var parameter = parameters[i],
+						first = parameter.slice(0, 1),
+						last = parameter.slice(-1);
+
+ 					argsArray.push((first === '"' && last === '"') || (first === "'" && last === "'") ? parameter.slice(1,-1): this[parameter]);
+ 				}
+
+ 				//Add subrender as last argument
+ 				argsArray.push(arguments[1]);
+
+ 				return fn.apply(this, argsArray);
+ 			}
+ 		};
+ 	}
+
+ 	//Get a context that includes the registered helpers
+ 	o.getContext = function(view) {
+ 		
+		return new Mustache.Context(view, helpersContext);
+ 	}
 
  	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
- 	//This allows us to leave the mustache.js source as is without modifications
- 	//And still get the extra semantics needed to work out dom insertions and deletions
 
  	//Helpers - expand name tokens with spaces into lambdas
- 	//eg {{format x y z}} to {{#format}}x y z{{/format}} - if helper registered
+ 	//eg {{format x y z}} to {{#format}}x y z{{/format}}
 	o.ninject = function(branch) {
 
 		var i = 0;
@@ -658,8 +699,6 @@ this.Rebind = this.Rebind || {};
 
 			//Handler
 			if (isHandler) {
-
-				//TODO: check that helper has been registered
 
 				//Rewrite token as a lambda function call
 				var values = token[1].split(' '),
@@ -698,8 +737,6 @@ this.Rebind = this.Rebind || {};
 
 	//Recurse through the source dom tree and apply changes to the target
 	o.mergeNodes = function(source, target, targetParent, level, index) {
-
-		console.log('Comparing nodes - source:' + (source && source.tagName) + ', target:' + (target && target.tagName) + ' at level: ' + level + ', index: ' + index);
 
 		//Source and target can be null if text node was removed
 		if (!source && !target) return;
