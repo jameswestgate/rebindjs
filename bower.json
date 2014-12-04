@@ -1,0 +1,28 @@
+{
+  "name": "rebindjs",
+  "version": "0.8.0-alpha",
+  "homepage": "https://github.com/jameswestgate/rebindjs",
+  "authors": [
+    "James Westgate <jameswestgate@icloud.com>"
+  ],
+  "description": "Intelligent dom data binding using mustache templating",
+  "main": "/dist/rebind.min.js",
+  "moduleType": [
+    "globals"
+  ],
+  "keywords": [
+    "mustache",
+    "handlebars",
+    "data-binding",
+    "template",
+    "templating"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
