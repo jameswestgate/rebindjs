@@ -111,9 +111,7 @@ this.Rebind = this.Rebind || {};
 		return new Mustache.Context(view, helpersContext);
  	}
 
- 	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
-
- 	//Helpers - expand name tokens with spaces into lambdas
+ 	//Inject Helpers into template by expanding name tokens with spaces into lambdas
  	//eg {{format x y z}} to {{#format}}x y z{{/format}}
 	o.ninject = function(branch) {
 
@@ -142,234 +140,168 @@ this.Rebind = this.Rebind || {};
 				token.push(end - 2);
 			}
 
-			//Control token
-			if (isSection) {
-
-				branch.splice(i, 0, ['text', '<!--' + token[0] + '-->', token[2], token[3]]);
-				i++;
-
-				//recurse subtree
-				o.ninject(token[4]);
-			}
+			//recurse subtree
+			if (isSection) o.ninject(token[4]);
 
 			i++;
-
-			//Close control token
-			if (isSection) {
-				
-				branch.splice(i, 0, inject = ['text', '<!--/-->', token[2], token[3]]);
-				i++;
-			}
 		}
 	}
 
+
 	//Recurse through the source dom tree and apply changes to the target
-	o.mergeNodes = function(source, target, targetParent, level, index) {
+	o.mergeNodes= function(source, target) {
 
-		//Source and target can be null if text node was removed
-		if (!source && !target) return;
-
-		//Cahce node types
-		var sourceType = source && source.nodeType,
-			targetType = target && target.nodeType;
-
-		//Text node insertion
-		if (sourceType === 3 && (!target || targetType !==3)) {
+		//Update comments and text nodes
+		if ((source.nodeType  === 3 && target.nodeType === 3) || (source.nodeType === 8 && target.nodeType === 8)) {
 			
-			//Text node insertion
-			if (!target) {
-				console.log('+ Cloned and inserted text node for empty target.');
-				targetParent.appendChild(source.cloneNode(false));
+			//Compare and update		
+			if (target.nodeValue !== source.nodeValue) {
+				console.log('> Updating comment/text value - source:' + source.nodeValue + ', target:' + target.nodeValue);
+
+				target.nodeValue = source.nodeValue;
 			}
-			else {
-				console.log('+ Cloned and inserted text node before target.');
-				targetParent.insertBefore(source.cloneNode(false), target);
-			}
+			
+			//No attributes or child elements, so we are done
 			return;
-		}
-			
-		//Text node removal
-		if (targetType === 3  && (!source || sourceType !==3)) {
-
-			console.log('- Remove text node from target.');
-			targetParent.removeChild(target);
-
-			if (!source) return;
-
-			//Continue
-			target = targetParent.childNodes[index];
-		}
-
-		//Detect if we have hit the start of a section
-		if (sourceType === 8 && targetType === 8) {
-			
-			if (source.nodeValue === '#') {
-				
-				//Get the index of the next end marker
-				var sourceIdx = getSectionEnd(source),
-					targetIdx = getSectionEnd(target);
-
-				//Some kind of failure, return
-				if (!sourceIdx || !targetIdx) {
-					console.log('rebind.js: Could not find end of section.');/*RemoveLogging:skip*/
-				}
-
-				//Load all elements in the target between source and targetidx's into an associative array by id
-				//elements without an id get p1, p2 etc
-				var map = mapElements(targetParent, index + 1, targetIdx);
-
-				//Now loop through each source node and get the relevant target node
-				var idx = index + 1,
-					count = 0;
-
-				while (idx < sourceIdx){
-
-					var node = source.parentNode.childNodes[idx],
-						bound = targetParent.childNodes[idx],
-						id = node.id;
-
-					if (!id) {
-						id = 'p' + count;
-						count++;
-					}
-
-					//Check if the node has an id
-					//If exists in target map, then move that node to the correct position 
-					//This will usually be the same node, which means no dom move is necessary
-					//Otherwise clone the node from the source (ie new inserts)
-					var existing = map[id];
-					if (existing) {
-
-						if (existing !== bound) {
-
-							console.log('^ Move mode with id:' + id + ' before:' + bound);
-							targetParent.insertBefore(existing, bound);
-						}
-					}
-					else {
-
-						console.log('+ Clone and added node with id: ' + id);
-						targetParent.insertBefore(node.cloneNode(true), bound);
-
-						targetIdx++;
-					}
-
-					idx++;
-				}
-
-				//Remove any tail nodes in the target
-				while (sourceIdx < targetIdx) {
-					
-					console.log('- Removed node at index:' + idx);
-					targetParent.removeChild(targetParent.childNodes[idx]);
-
-					sourceIdx ++;
-				}
-			}
-			else {
-				//Normal comments, just update
-				target.nodeValue = source.nodeValue
-			}
-
-			return;
-		}
-
-		//Now we have compared comment nodes, we can compare branch equality
-		if (source.isEqualNode(target)) return;
-
-		//Compare text nodes
-		if (sourceType === 3 && targetType === 3) {
-			
-			console.log('> Push text values - source:' + source.nodeValue + ', target:' + target.nodeValue);
-			target.nodeValue = source.nodeValue;
-
-			return;
-		}
-
-		//Element tagName changes ie <{{name}} ... >
-		if (source.tagName !== target.tagName) {
-			
-			console.log('> Tag replacement: ' + target.tagName + ' -> ' + source.tagName);
-			targetParent.replaceChild(source.cloneNode(true), target);
-			return;
-		}
-
-		//Iterate through any child nodes
-		var length = (source.childNodes.length < target.childNodes.length) ? target.childNodes.length : source.childNodes.length;
-
-		if (length) {
-
-			//Now loop recursively.
-			for (var i = 0; i<length; i++) {
-				o.mergeNodes(source.childNodes[i], target.childNodes[i], target, level + 1, i);
-			}
-
-			if (source.isEqualNode(target)) return;
 		}
 
 		//Update any attributes
 		if (source.attributes && target.attributes) { 
 		
-			var attributes = source.attributes;
+			var attributes = source.attributes,
+				value,
+				name;
 
+			//Add / update attributes
 			for (var i=0, len=attributes.length; i<len; i++) {
 
-				var value = attributes[i].nodeValue,
-					name = attributes[i].nodeName;
+				value = attributes[i].nodeValue;
+				name = attributes[i].nodeName;
 
 				if (target.getAttribute(name) !== value) {
 					
-					console.log('+ Push attribute values for:' + name + ' - source:'+ attributes[i].nodeValue + ', target:' + target.attributes[i].nodeValue);
+					console.log('+ Set attribute value for:' + name + ' - source:'+ attributes[i].nodeValue + ', target:' + target.attributes[i].nodeValue);
 					target.setAttribute(name, value);
 				}
 			}
-		}		
-	}
 
+			//Remove attributes
+			attributes = target.attributes;
 
-	//Starting with the comment node 
-	function getSectionEnd(node) {
-		var count = 0,
-			index = 0;
+			for (var i=0, len=attributes.length; i<len; i++) {
 
-		while (node) {
+				name = attributes[i].nodeName;
+
+				if (source.getAttribute(name) === null) {
+					
+					console.log('- remove target attribute:' + name);
+					target.removeAttribute(name);
+				}
+			}
+		}
+
+		//Return if equal after attribute update
+		if (source.isEqualNode(target)) return;
+
+		//Insert, delete and move child nodes based on predicted id
+		if (source.childNodes && target.childNodes) {
 			
-			if (node.nodeType === 8) {
-				if (node.nodeValue === '#') {
-					count ++
-				} 
-				else if (node.nodeValue === '/') {
-					count --;
-					if (count === 0) return index;
+			var	map = mapElements(target.childNodes),
+				tags = {},
+				nodes = source.childNodes;
+
+			//Now loop through each source node and get the relevant target node
+			for (var i=0, len=nodes.length; i<len; i++) {
+
+				var node = nodes[i],
+					bound = target.childNodes[i],
+					id = (node.id) ? node.id : generateId(node, tags);
+
+				//Check if the node has an id
+				//If exists in target map, then move that node to the correct position 
+				//This will usually be the same node, which means no dom move is necessary
+				//Otherwise clone the node from the source (ie new inserts)
+				var existing = map[id];
+				
+				if (existing) {
+
+					if (existing !== bound) {
+
+						console.log('^ Move mode with id:' + id + ' before:' + bound);
+						target.insertBefore(existing, bound);
+					}
+				}
+				else {
+
+					console.log('+ Clone and added node with id: ' + id);
+					target.insertBefore(node.cloneNode(true), bound);
 				}
 			}
 
-			index ++;
-			node = node.nextSibling;
+			//Remove any tail nodes in the target
+			while (target.childNodes.length > source.childNodes.length) {
+				
+				var remove = target.childNodes[target.childNodes.length -1];
+				
+				console.log('- Remove node: ' + remove);
+				
+				target.removeChild(remove);
+			}
 		}
 
-		return null;
+		//Return if equal after child nodes update
+		if (source.isEqualNode(target)) return;
+
+		//Iterate through any child nodes
+		var length = source.childNodes.length;
+
+		if (length) {
+
+			for (var i = 0; i<length; i++) {
+				o.mergeNodes(source.childNodes[i], target.childNodes[i]);
+			}
+		}
 	}
 
-	//Return a map of live elements and their ids, or generate a predicatable id if one does not exists
-	function mapElements(parent, start, end) {
-		var nodes = parent.childNodes,
-			map = {},
-			count = 0;
 
-		for (var i=start; i<end; i++) {
-			var node = nodes[i];
+	//Return a map of live elements and their ids, or generate a predicatable id if one does not exist
+	function mapElements(nodes) {
 
+		var map = {},
+			tags = {},
+			node;
+
+		for (var i=0, len=nodes.length; i<len; i++) {
+			
+			node = nodes[i];
+
+			//Just use the id if provided
+			//TODO: potential name clashes with generated id's.
 			if (node.id) {
 				map[node.id] = node;
 			}
 			else {
-				map['p' + count] = node;
-				count++;
+				//Add to the map with the generate id
+				map[generateId(node, tags)] = node;
 			}
 		}
 
 		return map;
+	}
+
+	//Create a unique id, using the tags collection for disambiguation
+	function generateId(node, tags) {
+
+		//Get the tag or create one from other node types
+		var tag = (node.tagName) ? node.tagName : 'x' + node.nodeType;
+
+		//Set the counter to zero
+		if (!tags[tag]) tags[tag] = 0;
+
+		//Increment the counter for that tag
+		tags[tag]++;
+
+		return tag + tags[tag];
 	}
 
  })(this.Rebind);
