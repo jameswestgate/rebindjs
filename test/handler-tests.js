@@ -11,7 +11,7 @@
 			tokens = writer.parse(template);
 
 		//Ninject control flow comment tokens
-		Rebind.ninject(tokens);
+		rebind.ninject(tokens);
 
 		//Create contexts around the two views provided
 		var contextA = new Mustache.Context(modelA),
@@ -43,15 +43,15 @@
 			tokens = writer.parse(template);
 
 		//Register the helper before the tokeniser runs
-		Rebind.registerHelper('exec', function(arg, render) {
+		rebind.registerHelper('exec', function(arg, render) {
 			return arg.toUpperCase();
 		});
 
 		//Compile the template
-		Rebind.ninject(tokens);
+		rebind.ninject(tokens);
 
-		var contextA = Rebind.getContext(modelA),
-			contextB = Rebind.getContext(modelB);
+		var contextA = rebind.getContext(modelA),
+			contextB = rebind.getContext(modelB);
 
 		//Now manually render both views into the document fragments
 		var outputA = writer.renderTokens(tokens, contextA, null, template),
@@ -71,15 +71,15 @@
 			tokens = writer.parse(template);
 
 		//Register the helper before the tokeniser runs
-		Rebind.registerHelper('exec', function(arg, text, render) {
+		rebind.registerHelper('exec', function(arg, text, render) {
 			return text + ' ' + arg.toUpperCase();
 		});
 
 		//Compile the template
-		Rebind.ninject(tokens);
+		rebind.ninject(tokens);
 
-		var contextA = Rebind.getContext(modelA),
-			contextB = Rebind.getContext(modelB);
+		var contextA = rebind.getContext(modelA),
+			contextB = rebind.getContext(modelB);
 
 		//Now manually render both views into the document fragments
 		var outputA = writer.renderTokens(tokens, contextA, null, template),
@@ -99,15 +99,15 @@
 			tokens = writer.parse(template);
 
 		//Register the helper before the tokeniser runs
-		Rebind.registerHelper('exec', function(arg, render) {
+		rebind.registerHelper('exec', function(arg, render) {
 			return arg;
 		});
 
 		//Compile the template
-		Rebind.ninject(tokens);
+		rebind.ninject(tokens);
 
-		var contextA = Rebind.getContext(modelA),
-			contextB = Rebind.getContext(modelB);
+		var contextA = rebind.getContext(modelA),
+			contextB = rebind.getContext(modelB);
 
 		//Now manually render both views into the document fragments
 		var outputA = writer.renderTokens(tokens, contextA, null, template),

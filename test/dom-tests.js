@@ -14,12 +14,12 @@
 		$(fixture).html(template);
 
 		//Reset because qunit-fixture is always the same id
-		Rebind.reset();
-		Rebind.bind(fixture, modelA);
+		rebind.reset();
+		rebind.bind(fixture, modelA);
 
 		var element1 = $(fixture).find('li')[0];
 
-		Rebind.bind(fixture, modelB);
+		rebind.bind(fixture, modelB);
 
 		var element2 = $(fixture).find('li')[0];
 
@@ -37,11 +37,11 @@
 
 		$(fixture).html(template);
 
-		Rebind.reset();
-		Rebind.bind(fixture, model);
+		rebind.reset();
+		rebind.bind(fixture, model);
 
 		model.name = 'two';
-		Rebind.bind(fixture, model);
+		rebind.bind(fixture, model);
 
 		ok($(fixture).find("li:contains('two')").length, $(fixture).html());
 	});
@@ -56,11 +56,11 @@
 
 		$(fixture).html(template);
 
-		Rebind.reset();
-		Rebind.render(fixture, model);
+		rebind.reset();
+		rebind.render(fixture, model);
 
 		model.name = 'two';
-		Rebind.merge(fixture, model);
+		rebind.merge(fixture, model);
 
 		ok($(fixture).find("li:contains('two')").length, $(fixture).html());
 	});

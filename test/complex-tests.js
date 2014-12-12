@@ -81,7 +81,7 @@
 			tokens = writer.parse(template);
 
 		//Ninject control flow comment tokens
-		Rebind.ninject(tokens);
+		rebind.ninject(tokens);
 
 		//Create contexts around the two views provided
 		var contextA = new Mustache.Context(modelA),
@@ -106,7 +106,7 @@
 		console.log('[[ node B:' + divB.innerHTML + ' ]]');
 
 		//Now merge and test (the newer markup is the source)
-		Rebind.mergeNodes(divB.firstChild, divA.firstChild, divA, 0, 0);
+		rebind.mergeNodes(divB.firstChild, divA.firstChild, divA, 0, 0);
 
 		console.log('--> source: ' + divA.innerHTML);
 		console.log('--> target: ' + divB.innerHTML);

@@ -4,7 +4,7 @@
  * Released under the MIT license
  */
 
-this.Rebind = this.Rebind || {};
+this.rebind = this.rebind || {};
 
 (function(o) {
 
@@ -28,7 +28,7 @@ this.Rebind = this.Rebind || {};
 			tokens = writer.parse(template);
 
 		//Add control flow comment tokens
-		Rebind.ninject(tokens);
+		rebind.ninject(tokens);
 
 		//Create context, injecting helpers as the parent
 		var context = o.getContext(view, helpers);
@@ -75,7 +75,7 @@ this.Rebind = this.Rebind || {};
 		o[method](element, view);
  	}
 
- 	//Register a helper function with Rebind. 
+ 	//Register a helper function with rebind. 
  	//The tokeniser will use this to create a lambda function and to bind helpers to views
  	o.registerHelper = function(name, fn) {
  		
@@ -275,15 +275,8 @@ this.Rebind = this.Rebind || {};
 			
 			node = nodes[i];
 
-			//Just use the id if provided
-			//TODO: potential name clashes with generated id's.
-			if (node.id) {
-				map[node.id] = node;
-			}
-			else {
-				//Add to the map with the generate id
-				map[generateId(node, tags)] = node;
-			}
+			//Use the id provided or generate and id based on existing usage
+			map[(node.id) ? node.id : generateId(node, tags)] = node;
 		}
 
 		return map;
@@ -304,4 +297,4 @@ this.Rebind = this.Rebind || {};
 		return tag + tags[tag];
 	}
 
- })(this.Rebind);
+ })(this.rebind);
