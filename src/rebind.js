@@ -31,10 +31,14 @@ this.rebind = this.rebind || {};
 		rebind.ninject(tokens);
 
 		//Create context, injecting helpers as the parent
-		var context = o.getContext(view, helpers);
+		var context = o.getContext(view, helpers),
+			div = document.createElement('div');
+
+		document.createDocumentFragment().appendChild(div);
 
 		//Render markup and apply to target element
-		element.innerHTML = writer.renderTokens(tokens, context, null, template);
+		div.innerHTML = writer.renderTokens(tokens, context, null, template);
+		element.innerHTML = div.innerHTML;
 
 		//Cache template and token for future merges
 		cache[element.id] = {template: template, tokens: tokens};
@@ -60,6 +64,9 @@ this.rebind = this.rebind || {};
  	//TODO: resolve element if not a node (ie getElementById)
  	o.bind = function(element, view) {
 
+ 		//Resolve the element
+ 		if (typeof element === 'string') element = document.getElementById(element);
+ 		
  		var	method = cache[element.id] ? 'merge' : 'render';
 
 		o[method](element, view);

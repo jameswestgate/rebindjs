@@ -27,6 +27,31 @@
 		ok(element1 === element2, 'Element references match.')
 	});
 
+	test('dom lookup test', function() {
+		
+		var template = '<ul><li>{{name}}</li></ul>',
+			modelA = {name: 'one'},
+			modelB = {name: 'two'};
+
+		//Take template and add as-is to the dom
+		var fixture = document.getElementById('qunit-fixture');
+
+		$(fixture).html(template);
+
+		//Reset because qunit-fixture is always the same id
+		rebind.reset();
+		rebind.bind('qunit-fixture', modelA);
+
+		var element1 = $(fixture).find('li')[0];
+
+		rebind.bind('qunit-fixture', modelB);
+
+		var element2 = $(fixture).find('li')[0];
+
+		ok($(fixture).find("li:contains('two')").length, 'Results found.');
+		ok(element1 === element2, 'Element references match.')
+	});
+
 	test('model modify dom update', function() {
 		
 		var template = '<ul><li>{{name}}</li></ul>',
