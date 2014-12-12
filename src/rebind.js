@@ -36,24 +36,14 @@ this.rebind = this.rebind || {};
 		//Render markup and apply to target element
 		element.innerHTML = writer.renderTokens(tokens, context, null, template);
 
-		//Get or generate a cache key
-		var key = element.id;
-
-		if (!key || !key.length) {
-			key = 'id' + id;
-			element._rebindId = 'id' + id;
-
-			id++;
-		}
-
 		//Cache template and token for future merges
-		cache[key] = {template: template, tokens: tokens};
+		cache[element.id] = {template: template, tokens: tokens};
 	}
 	
 	o.merge = function(element, view) {
 
 		var div = document.createElement('div'),
-			key = element._rebindId || element.id;
+			key = element.id;
 
 		//Document fragments require a child node to add innerHTML
 		document.createDocumentFragment().appendChild(div);
@@ -63,14 +53,14 @@ this.rebind = this.rebind || {};
 		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(view), null, cache[key].template);
 	
 		//Now merge and test (the newer markup is the source)
-		o.mergeNodes(div.firstChild, element.firstChild, element, 0, 0);
+		o.mergeNodes(div.firstChild, element.firstChild);
  	}
 
  	//Determine if the element template has been rendered yet and call appropriately
+ 	//TODO: resolve element if not a node (ie getElementById)
  	o.bind = function(element, view) {
 
- 		var key = element.id || element._rebindId,
- 			method = cache[key] ? 'merge' : 'render';
+ 		var	method = cache[element.id] ? 'merge' : 'render';
 
 		o[method](element, view);
  	}
@@ -140,10 +130,27 @@ this.rebind = this.rebind || {};
 				token.push(end - 2);
 			}
 
+			//Control token
+			if (isSection) {
+
+				branch.splice(i, 0, ['text', '<!--' + token[0] + ':' + token[1] + '-->', token[2], token[3]]);
+				i++;
+
+				//recurse subtree
+				o.ninject(token[4]);
+			}
+
 			//recurse subtree
 			if (isSection) o.ninject(token[4]);
+ 
+ 			i++;
 
-			i++;
+			//Close control token
+			if (isSection) {
+				
+				branch.splice(i, 0, inject = ['text', '<!--/-->', token[2], token[3]]);
+				i++;
+			}
 		}
 	}
 

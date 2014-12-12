@@ -1,6 +1,6 @@
 Rebind js
 =========
 
-Continuous data binding for content created with  Mustache templating. 
-Uses plain Javascript objects to modify existing DOM elements.
+A lightweight Model View Viewmodel (MVVM) library using Mustache templating, focussing on out-the-box developer productivity.
+Uses plain Javascript objects to intelligently modify existing DOM elements.
 
