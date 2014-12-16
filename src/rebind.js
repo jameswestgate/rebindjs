@@ -8,21 +8,23 @@ this.rebind = this.rebind || {};
 
 (function(o) {
 
-	var writer = new Mustache.Writer(),
-		cache = {},
-		helpers = {},
-		helpersContext = new Mustache.Context(helpers);
-		id = 0;
+	//TODO: refactor a seperate ViewModel class
+	var writer,
+		cache,
+		helpers,
+		helpersContext,
+		handled;
 
 	o.reset = function() {
+		writer = new Mustache.Writer();
 		cache = {};
-		id = 0;
 		helpers = {};
 		helpersContext = new Mustache.Context(helpers);
+		handled = [];
 	}
 
 	//Extract the template from the element, 
-	o.render = function(element, view) {
+	o.render = function(element, model) {
 		
 		var template = element.innerHTML,
 			tokens = writer.parse(template);
@@ -31,20 +33,19 @@ this.rebind = this.rebind || {};
 		rebind.ninject(tokens);
 
 		//Create context, injecting helpers as the parent
-		var context = o.getContext(view, helpers),
+		var context = o.getContext(model, helpers),
 			div = document.createElement('div');
 
 		document.createDocumentFragment().appendChild(div);
 
 		//Render markup and apply to target element
-		div.innerHTML = writer.renderTokens(tokens, context, null, template);
-		element.innerHTML = div.innerHTML;
-
+		element.innerHTML = writer.renderTokens(tokens, context, null, template);
+		
 		//Cache template and token for future merges
 		cache[element.id] = {template: template, tokens: tokens};
 	}
 	
-	o.merge = function(element, view) {
+	o.merge = function(element, model) {
 
 		var div = document.createElement('div'),
 			key = element.id;
@@ -53,23 +54,81 @@ this.rebind = this.rebind || {};
 		document.createDocumentFragment().appendChild(div);
 
 		//It is easiest to get a new context rather than clear the cache.
-		//Render the view into the div
-		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(view), null, cache[key].template);
-	
+		//Render the model into the div
+		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(model), null, cache[key].template);
+
 		//Now merge and test (the newer markup is the source)
 		o.mergeNodes(div.firstChild, element.firstChild);
  	}
 
  	//Determine if the element template has been rendered yet and call appropriately
- 	//TODO: resolve element if not a node (ie getElementById)
- 	o.bind = function(element, view) {
+ 	o.bind = function(element, model) {
 
  		//Resolve the element
  		if (typeof element === 'string') element = document.getElementById(element);
  		
  		var	method = cache[element.id] ? 'merge' : 'render';
 
-		o[method](element, view);
+		o[method](element, model);
+ 	}
+
+ 	//Watch for change events and update model accordingly
+ 	//The element originating the change event must have a 'name' or 'data-name' attribute
+ 	//TODO: add syntax for nested loops eg people > addresses
+ 	o.attach = function(element, model) {
+
+ 		//Clear list of handled events.
+ 		//TODO: change event may not bubble in IE8.
+ 		document.body.addEventListener('change', function() {
+			console.log('>> Clearing handled.');
+ 			handled.length = 0;
+ 		});
+ 		
+ 		//Modern browsers should clean these handlers up automatically
+ 		element.addEventListener('change', function(e) {
+
+ 			//Check the event target to see if it has a name or data-name attribute
+ 			var target = e.target || e.srcElement || e.originalTarget,
+ 				name = target.getAttribute('name') || target.getAttribute('data-name');
+
+ 			if (!name) return;
+
+ 			//Check if this has already been handled
+ 			// for (var i=0, len=handled.length; i<len; i++) {
+ 			// 	if (handled[i] === target) {
+ 			// 		console.log('>> Target already handled (value:' + target.value + ').');
+ 			// 		return;
+ 			// 	}
+ 			// }
+
+ 			//Check if the name is repeated in sibling nodes [name=currentName] ie to use array syntax
+ 			var nodes = element.querySelectorAll('[name=' + name + ']');
+ 			if (nodes.length < 2) nodes = element.querySelectorAll('[data-name=' + name + ']');
+
+ 			//No array so just update
+ 			if (nodes.length < 2) {
+ 				
+				console.log('>> Applying value: ' + target.value);
+
+ 				model[name] = target.value;
+ 				handled.push(target);
+ 				
+ 				return;
+ 			}
+
+ 			//Get current index and update
+ 			for (var i=0, len=nodes.length; i<len; i++) {
+ 				if (nodes[i] === target) {
+ 					
+ 					if (model[i]) {
+ 						model[i][name] = target.value;
+ 						handled.push(target);
+ 					}
+ 				
+ 					return;
+ 				}
+ 			} 			
+ 		});
  	}
 
  	//Register a helper function with rebind. 
@@ -137,33 +196,16 @@ this.rebind = this.rebind || {};
 				token.push(end - 2);
 			}
 
-			//Control token
-			if (isSection) {
-
-				branch.splice(i, 0, ['text', '<!--' + token[0] + ':' + token[1] + '-->', token[2], token[3]]);
-				i++;
-
-				//recurse subtree
-				o.ninject(token[4]);
-			}
-
 			//recurse subtree
 			if (isSection) o.ninject(token[4]);
  
  			i++;
-
-			//Close control token
-			if (isSection) {
-				
-				branch.splice(i, 0, inject = ['text', '<!--/-->', token[2], token[3]]);
-				i++;
-			}
 		}
 	}
 
 
 	//Recurse through the source dom tree and apply changes to the target
-	o.mergeNodes= function(source, target) {
+	o.mergeNodes = function(source, target) {
 
 		//Update comments and text nodes
 		if ((source.nodeType  === 3 && target.nodeType === 3) || (source.nodeType === 8 && target.nodeType === 8)) {
@@ -310,5 +352,7 @@ this.rebind = this.rebind || {};
 
 		return tag + tags[tag];
 	}
+
+	o.reset();
 
  })(this.rebind);
