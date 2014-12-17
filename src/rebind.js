@@ -10,27 +10,34 @@ this.rebind = this.rebind || {};
 
 	//TODO: refactor a seperate ViewModel class
 	var writer,
-		cache,
 		helpers,
-		helpersContext,
-		handled;
+		helpersContext;
 
 	o.reset = function() {
 		writer = new Mustache.Writer();
-		cache = {};
 		helpers = {};
 		helpersContext = new Mustache.Context(helpers);
-		handled = [];
+	}
+
+
+	//-- Define the ViewModel class
+
+	o.ViewModel = function(element) {
+		
+		if (typeof element === 'string') element = document.getElementById(element);
+
+		this.element = element;
+		this.handled = [];
 	}
 
 	//Extract the template from the element, 
-	o.render = function(element, model) {
+	o.ViewModel.prototype.render = function(model) {
 		
-		var template = element.innerHTML,
-			tokens = writer.parse(template);
+		this.template = this.element.innerHTML;
+		this.tokens = writer.parse(this.template);
 
 		//Add control flow comment tokens
-		rebind.ninject(tokens);
+		o.inject(this.tokens);
 
 		//Create context, injecting helpers as the parent
 		var context = o.getContext(model, helpers),
@@ -39,53 +46,49 @@ this.rebind = this.rebind || {};
 		document.createDocumentFragment().appendChild(div);
 
 		//Render markup and apply to target element
-		element.innerHTML = writer.renderTokens(tokens, context, null, template);
-		
-		//Cache template and token for future merges
-		cache[element.id] = {template: template, tokens: tokens};
+		this.element.innerHTML = writer.renderTokens(this.tokens, context, null, this.template);
 	}
 	
-	o.merge = function(element, model) {
+	o.ViewModel.prototype.merge = function(model) {
 
-		var div = document.createElement('div'),
-			key = element.id;
+		var div = document.createElement('div');
 
 		//Document fragments require a child node to add innerHTML
 		document.createDocumentFragment().appendChild(div);
 
 		//It is easiest to get a new context rather than clear the cache.
 		//Render the model into the div
-		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(model), null, cache[key].template);
+		div.innerHTML = writer.renderTokens(this.tokens, o.getContext(model), null, this.template);
 
 		//Now merge and test (the newer markup is the source)
-		o.mergeNodes(div.firstChild, element.firstChild);
+		o.mergeNodes(div.firstChild, this.element.firstChild);
  	}
 
  	//Determine if the element template has been rendered yet and call appropriately
- 	o.bind = function(element, model) {
+ 	o.ViewModel.prototype.bind = function(model) {
 
- 		//Resolve the element
- 		if (typeof element === 'string') element = document.getElementById(element);
- 		
- 		var	method = cache[element.id] ? 'merge' : 'render';
+ 		var	method = this.template && this.tokens ? 'merge' : 'render';
 
-		o[method](element, model);
+		this[method](model);
+		this.attach(this.element, model);
  	}
 
  	//Watch for change events and update model accordingly
  	//The element originating the change event must have a 'name' or 'data-name' attribute
  	//TODO: add syntax for nested loops eg people > addresses
- 	o.attach = function(element, model) {
+ 	o.ViewModel.prototype.attach = function(el, model) {
+
+ 		var self = this;
 
  		//Clear list of handled events.
  		//TODO: change event may not bubble in IE8.
+ 		//We'll add a handler for each viewmodel to avoid caching elements / viewmodels
  		document.body.addEventListener('change', function() {
-			console.log('>> Clearing handled.');
- 			handled.length = 0;
+ 			self.handled.length = 0;
  		});
  		
  		//Modern browsers should clean these handlers up automatically
- 		element.addEventListener('change', function(e) {
+ 		el.addEventListener('change', function(e) {
 
  			//Check the event target to see if it has a name or data-name attribute
  			var target = e.target || e.srcElement || e.originalTarget,
@@ -94,24 +97,21 @@ this.rebind = this.rebind || {};
  			if (!name) return;
 
  			//Check if this has already been handled
- 			// for (var i=0, len=handled.length; i<len; i++) {
- 			// 	if (handled[i] === target) {
- 			// 		console.log('>> Target already handled (value:' + target.value + ').');
- 			// 		return;
- 			// 	}
- 			// }
+ 			for (var i=0, len=self.handled.length; i<len; i++) {
+ 				if (self.handled[i] === target) {
+ 					return;
+ 				}
+ 			}
 
  			//Check if the name is repeated in sibling nodes [name=currentName] ie to use array syntax
- 			var nodes = element.querySelectorAll('[name=' + name + ']');
- 			if (nodes.length < 2) nodes = element.querySelectorAll('[data-name=' + name + ']');
+ 			var nodes = el.querySelectorAll('[name=' + name + ']');
+ 			if (nodes.length < 2) nodes = el.querySelectorAll('[data-name=' + name + ']');
 
  			//No array so just update
  			if (nodes.length < 2) {
  				
-				console.log('>> Applying value: ' + target.value);
-
  				model[name] = target.value;
- 				handled.push(target);
+ 				self.handled.push(target);
  				
  				return;
  			}
@@ -122,7 +122,7 @@ this.rebind = this.rebind || {};
  					
  					if (model[i]) {
  						model[i][name] = target.value;
- 						handled.push(target);
+ 						self.handled.push(target);
  					}
  				
  					return;
@@ -167,9 +167,13 @@ this.rebind = this.rebind || {};
 		return new Mustache.Context(view, helpersContext);
  	}
 
+ 	o.create = function(element) {
+ 		return new o.ViewModel(element);
+ 	}
+
  	//Inject Helpers into template by expanding name tokens with spaces into lambdas
  	//eg {{format x y z}} to {{#format}}x y z{{/format}}
-	o.ninject = function(branch) {
+	o.inject = function(branch) {
 
 		var i = 0;
 
@@ -197,7 +201,7 @@ this.rebind = this.rebind || {};
 			}
 
 			//recurse subtree
-			if (isSection) o.ninject(token[4]);
+			if (isSection) o.inject(token[4]);
  
  			i++;
 		}

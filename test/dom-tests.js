@@ -15,11 +15,12 @@
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
-		rebind.bind(fixture, modelA);
+		
+		var vm = rebind.create(fixture);
+		vm.render(modelA);
 
 		var element1 = $(fixture).find('li')[0];
-
-		rebind.bind(fixture, modelB);
+		vm.merge(modelB);
 
 		var element2 = $(fixture).find('li')[0];
 
@@ -40,11 +41,12 @@
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
-		rebind.bind('qunit-fixture', modelA);
+
+		var vm = rebind.create('qunit-fixture');
+		vm.render(modelA);
 
 		var element1 = $(fixture).find('li')[0];
-
-		rebind.bind('qunit-fixture', modelB);
+		vm.merge(modelB);
 
 		var element2 = $(fixture).find('li')[0];
 
@@ -63,10 +65,12 @@
 		$(fixture).html(template);
 
 		rebind.reset();
-		rebind.bind(fixture, model);
+
+		var vm = rebind.create(fixture);
+		vm.render(model);
 
 		model.name = 'two';
-		rebind.bind(fixture, model);
+		vm.merge(model);
 
 		ok($(fixture).find("li:contains('two')").length, $(fixture).html());
 	});
@@ -82,10 +86,12 @@
 		$(fixture).html(template);
 
 		rebind.reset();
-		rebind.render(fixture, model);
+		
+		var vm = rebind.create(fixture);
+		vm.render(model);
 
 		model.name = 'two';
-		rebind.merge(fixture, model);
+		vm.merge(model);
 
 		ok($(fixture).find("li:contains('two')").length, $(fixture).html());
 	});

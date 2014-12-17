@@ -11,7 +11,7 @@
 			tokens = writer.parse(template);
 
 		//Ninject control flow comment tokens
-		rebind.ninject(tokens);
+		rebind.inject(tokens);
 
 		//Create contexts around the two views provided
 		var contextA = new Mustache.Context(modelA),
@@ -48,7 +48,7 @@
 		});
 
 		//Compile the template
-		rebind.ninject(tokens);
+		rebind.inject(tokens);
 
 		var contextA = rebind.getContext(modelA),
 			contextB = rebind.getContext(modelB);
@@ -76,7 +76,7 @@
 		});
 
 		//Compile the template
-		rebind.ninject(tokens);
+		rebind.inject(tokens);
 
 		var contextA = rebind.getContext(modelA),
 			contextB = rebind.getContext(modelB);
@@ -104,7 +104,7 @@
 		});
 
 		//Compile the template
-		rebind.ninject(tokens);
+		rebind.inject(tokens);
 
 		var contextA = rebind.getContext(modelA),
 			contextB = rebind.getContext(modelB);

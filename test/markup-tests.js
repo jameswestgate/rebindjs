@@ -206,7 +206,7 @@
 			tokens = writer.parse(template);
 
 		//Ninject control flow comment tokens
-		rebind.ninject(tokens);
+		rebind.inject(tokens);
 
 		//Create contexts around the two views provided
 		var contextA = new Mustache.Context(modelA),
