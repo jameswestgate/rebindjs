@@ -14,7 +14,9 @@
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
-		rebind.create(fixture).bind(model);
+		
+		var vm = rebind.create(fixture);
+		vm.apply(model);
 
 		//Should automatically update the model
 		var input = $(fixture).find('input');
@@ -25,6 +27,9 @@
 		//You have to manually trigger a change event
 		var evt = new Event('change', { bubbles: true, cancelable: true });
 		input[0].dispatchEvent(evt);
+
+		//Clear handlers for following test
+		vm.detach();
 
 		ok(model.field === 'two', 'Model value updated');
 	});
@@ -41,7 +46,9 @@
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
-		rebind.create(fixture).bind(model);
+		
+		var vm = rebind.create(fixture);
+		vm.apply(model);
 
 		//Should automatically update the model
 		var input = $(fixture).find('input');
@@ -52,6 +59,9 @@
 		//You have to manually trigger a change event
 		var evt = new Event('change', { bubbles: true, cancelable: true });
 		input[0].dispatchEvent(evt);
+
+		//Clear handlers for following test
+		vm.detach();
 
 		ok(model.field === 'one', 'Model value not updated');
 		ok(model.out === 'two', 'Model value updated');
@@ -69,7 +79,9 @@
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
-		rebind.create(fixture).bind(model);
+		
+		var vm = rebind.create(fixture);
+		vm.apply(model);
 		
 		//Should automatically update the model
 		var input = $(fixture).find('input');
@@ -80,6 +92,9 @@
 		//You have to manually trigger a change event
 		var evt = new Event('change', { bubbles: true, cancelable: true });
 		input[0].dispatchEvent(evt);
+
+		//Clear handlers for following test
+		vm.detach();
 
 		ok(model.field === 'two', 'Model value updated');
 	});
@@ -97,7 +112,9 @@
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
-		rebind.create(fixture).bind(model);
+
+		var vm = rebind.create(fixture);
+		vm.apply(model);
 
 		//Should automatically update the model
 		var input = $(fixture).find('input');
@@ -109,15 +126,21 @@
 		var evt = new Event('change', { bubbles: true, cancelable: true });
 		input[0].dispatchEvent(evt);
 
+		//Clear handlers for following test
+		vm.detach();
+
 		ok(model.field === 'one', 'Model value not updated');
 		ok(model.out === 'two', 'Model value updated');
 	});
 
 	test('array binding', function() {
 		
-		var template = '<ul id ="tasks-list" class="tasks">{{#tasks}}' +
-			'<li><label for="id{{id}}">{{name}}</label><input id="id{{id}}" type="text" value="{{desc}}" name="desc"/></li>' +
-			'{{/tasks}}</ul>';
+		var template = 
+			'<ul id ="tasks-list" class="tasks">' +
+			'{{#tasks}}' +
+			'<li data-name="tasks"><label for="id{{id}}">{{name}}</label><input id="id{{id}}" type="text" value="{{desc}}" name="desc"/></li>' +
+			'{{/tasks}}' + 
+			'</ul>';
 
 		var model = {tasks: [
 			{id:1, name:'task1', desc:'do task1'},
@@ -134,11 +157,10 @@
 		rebind.reset();
 		
 		var vm = rebind.create(fixture);
-		vm.render(model);
+		vm.apply(model);
 
 		//Attach to the tasks
-		var tasks = document.getElementById('tasks-list');
-		vm.attach(tasks, model.tasks);
+		vm.attach(['#tasks-list', model.tasks]);
 
 		//Should automatically update the model
 		var input = $(fixture).find('input');
@@ -156,5 +178,146 @@
 		ok(model.tasks[1].desc === 'updated', 'Model value updated');
 	});
 
+	test('nested binding', function() {
+		
+		var template = 
+			'<div id="robot-template">' + 
+			'{{#robots}}' + 
+			'<section id="robot-{{robot}}">' +
+			'<ul class="tasks-list">' +
+			'{{#tasks}}' +
+			'<li><input id="id{{id}}" type="text" value="{{desc}}" name="desc"></li>' +
+			'<{{/tasks}}' + 
+			'</ul>' + 
+			'</section>' +
+			'{{/robots}}' + 
+			'</div>';
+
+		var bob = {robot: 'bob', tasks: [
+			{id:1, name:'task1', desc:'do task1'},
+			{id:2, name:'task2', desc:'do task2'}
+		]};
+
+		var clive = {robot: 'clive', tasks: [
+			{id:3, name:'task3', desc:'do task3'},
+			{id:4, name:'task4', desc:'do task4'},
+			{id:5, name:'task5', desc:'do task5'},
+			{id:6, name:'task6', desc:'do task6'}
+		]};
+
+		var jonas = {robot: 'jonas', tasks: [
+			{id:7, name:'task7', desc:'do task7'},
+			{id:8, name:'task8', desc:'do task8'},
+			{id:9, name:'task9', desc:'do task9'}
+		]};
+
+		var model = {robots: [bob, clive, jonas]};
+
+		//Take template and add as-is to the dom
+		var fixture = document.getElementById('qunit-fixture');
+
+		//$(fixture).html(template);
+		fixture.innerHTML = template;
+
+		//Reset because qunit-fixture is always the same id
+		rebind.reset();
+		
+		var vm = rebind.create(fixture);
+		vm.apply(model);
+
+		var input = $(fixture).find('#robot-clive input');
+
+		ok(input.length ===  4, 'Inputs found: ' + input.length);
+
+		ok(input.eq(0).val() === 'do task3', 'Input value populated: ' + input.eq(0).val());
+		ok(input.eq(1).val() === 'do task4', 'Input value populated: ' + input.eq(1).val());
+		ok(input.eq(2).val() === 'do task5', 'Input value populated: ' + input.eq(2).val());
+		ok(input.eq(3).val() === 'do task6', 'Input value populated: ' + input.eq(3).val());
+		
+		//The event collects mappings as it travels up the dom tree until it arrives at the body
+
+		//Update task 5
+		input.eq(1).val('updated');
+
+		//You have to manually trigger a change event
+		var evt = new Event('change', {bubbles: true, cancelable: true });
+		input[1].dispatchEvent(evt);
+
+		//Clear handlers for following test
+		vm.detach();
+
+		ok(model.robots[1].tasks[1].desc === 'updated', 'Model value updated');
+	});
+
+	test('nested commented sections', function() {
+		
+		var template = 
+			'<table id="robot-table">' + 
+			'<!--{{#robots}}-->' + 
+			'<tr id="robot-{{robot}}"><td>' +
+			'<ul class="tasks-list">' +
+			'{{#tasks}}' +
+			'<li><input id="id{{id}}" type="text" value="{{desc}}" name="desc"></li>' +
+			'<{{/tasks}}' + 
+			'</ul>' + 
+			'</td></tr>' +
+			'<!--{{/robots}}-->' + 
+			'</table>';
+
+		var bob = {robot: 'bob', tasks: [
+			{id:1, name:'task1', desc:'do task1'},
+			{id:2, name:'task2', desc:'do task2'}
+		]};
+
+		var clive = {robot: 'clive', tasks: [
+			{id:3, name:'task3', desc:'do task3'},
+			{id:4, name:'task4', desc:'do task4'},
+			{id:5, name:'task5', desc:'do task5'},
+			{id:6, name:'task6', desc:'do task6'}
+		]};
+
+		var jonas = {robot: 'jonas', tasks: [
+			{id:7, name:'task7', desc:'do task7'},
+			{id:8, name:'task8', desc:'do task8'},
+			{id:9, name:'task9', desc:'do task9'}
+		]};
+
+		var model = {robots: [bob, clive, jonas]};
+
+		//Take template and add as-is to the dom
+		var fixture = document.getElementById('qunit-fixture');
+
+		//$(fixture).html(template);
+		fixture.innerHTML = template;
+
+		//Reset because qunit-fixture is always the same id
+		rebind.reset();
+		
+		var vm = rebind.create(fixture);
+		vm.apply(model);
+
+		var input = $(fixture).find('#robot-clive input');
+
+		ok(input.length ===  4, 'Inputs found: ' + input.length);
+
+		ok(input.eq(0).val() === 'do task3', 'Input value populated: ' + input.eq(0).val());
+		ok(input.eq(1).val() === 'do task4', 'Input value populated: ' + input.eq(1).val());
+		ok(input.eq(2).val() === 'do task5', 'Input value populated: ' + input.eq(2).val());
+		ok(input.eq(3).val() === 'do task6', 'Input value populated: ' + input.eq(3).val());
+		
+		//The event collects mappings as it travels up the dom tree until it arrives at the body
+
+		//Update task 5
+		input.eq(1).val('updated');
+
+		//You have to manually trigger a change event
+		var evt = new Event('change', {bubbles: true, cancelable: true });
+		input[1].dispatchEvent(evt);
+
+		//Clear handlers for following test
+		vm.detach();
+
+		ok(model.robots[1].tasks[1].desc === 'updated', 'Model value updated');
+	});
 	
 })();

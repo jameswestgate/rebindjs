@@ -202,7 +202,7 @@
 
 	function runTest(template, modelA, modelB) {
 
-		var writer = new Mustache.Writer(),
+		var writer = new rebind.Writer(),
 			tokens = writer.parse(template);
 
 		//Ninject control flow comment tokens
