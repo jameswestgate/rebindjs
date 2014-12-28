@@ -4,22 +4,21 @@
 
 	test('simple attach', function() {
 		
-		var template = '<form><input type="text" value="{{field}}" name="field"/></form>',
+		var template = '<form id="template"><input type="text" value="{{field}}" name="field"/></form>',
 			model = {field: 'one'};
 
 		//Take template and add as-is to the dom
-		var fixture = document.getElementById('qunit-fixture');
-
-		$(fixture).html(template);
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('template');
 		vm.apply(model);
 
 		//Should automatically update the model
-		var input = $(fixture).find('input');
+		var input = fixture.find('input');
 		ok(input.val() === 'one', 'Input value populated.');
 		
 		input.val('two');
@@ -36,22 +35,21 @@
 
 	test('attach to different field', function() {
 		
-		var template = '<form><input type="text" value="{{field}}" name="out"/></form>',
+		var template = '<form id="template"><input type="text" value="{{field}}" name="out"/></form>',
 			model = {field: 'one', out: ''};
 
 		//Take template and add as-is to the dom
-		var fixture = document.getElementById('qunit-fixture');
-
-		$(fixture).html(template);
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('template');
 		vm.apply(model);
 
 		//Should automatically update the model
-		var input = $(fixture).find('input');
+		var input = fixture.find('input');
 		ok(input.val() === 'one', 'Input value populated.');
 		
 		input.val('two');
@@ -69,22 +67,21 @@
 
 	test('use data field', function() {
 		
-		var template = '<form><input type="text" value="{{field}}" data-name="field"/></form>',
+		var template = '<form id="template"><input type="text" value="{{field}}" data-name="field"/></form>',
 			model = {field: 'one'};
 
 		//Take template and add as-is to the dom
-		var fixture = document.getElementById('qunit-fixture');
-
-		$(fixture).html(template);
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('template');
 		vm.apply(model);
 		
 		//Should automatically update the model
-		var input = $(fixture).find('input');
+		var input = fixture.find('input');
 		ok(input.val() === 'one', 'Input value populated.');
 		
 		input.val('two');
@@ -102,22 +99,21 @@
 
 	test('use data field different binding', function() {
 		
-		var template = '<form><input type="text" value="{{field}}" data-name="out"/></form>',
+		var template = '<form id="template"><input type="text" value="{{field}}" data-name="out"/></form>',
 			model = {field: 'one', out: ''};
 
 		//Take template and add as-is to the dom
-		var fixture = document.getElementById('qunit-fixture');
-
-		$(fixture).html(template);
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('template');
 		vm.apply(model);
 
 		//Should automatically update the model
-		var input = $(fixture).find('input');
+		var input = fixture.find('input');
 		ok(input.val() === 'one', 'Input value populated.');
 		
 		input.val('two');
@@ -149,21 +145,17 @@
 		]};
 
 		//Take template and add as-is to the dom
-		var fixture = document.getElementById('qunit-fixture');
-
-		$(fixture).html(template);
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('tasks-list');
 		vm.apply(model);
 
-		//Attach to the tasks
-		vm.attach(['#tasks-list', model.tasks]);
-
 		//Should automatically update the model
-		var input = $(fixture).find('input');
+		var input = fixture.find('input');
 
 		ok(input.eq(0).val() === 'do task1', 'Input value 1 populated: ' + input.eq(0).val());
 		ok(input.eq(1).val() === 'do task2', 'Input value 2 populated: ' + input.eq(1).val());
@@ -174,6 +166,9 @@
 		//You have to manually trigger a change event
 		var evt = new Event('change', {bubbles: true, cancelable: true });
 		input[1].dispatchEvent(evt);
+
+		//Clear handlers for following test
+		vm.detach();
 
 		ok(model.tasks[1].desc === 'updated', 'Model value updated');
 	});
@@ -216,13 +211,13 @@
 		//Take template and add as-is to the dom
 		var fixture = document.getElementById('qunit-fixture');
 
-		//$(fixture).html(template);
+		//fixture.html(template);
 		fixture.innerHTML = template;
 
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('robot-template');
 		vm.apply(model);
 
 		var input = $(fixture).find('#robot-clive input');
@@ -295,7 +290,7 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create(fixture);
+		var vm = rebind.create('robot-table');
 		vm.apply(model);
 
 		var input = $(fixture).find('#robot-clive input');

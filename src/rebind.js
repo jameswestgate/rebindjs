@@ -185,6 +185,9 @@ this.rebind = this.rebind || {};
 		if (typeof element === 'string') element = document.getElementById(element);
 
 		this.element = element;
+		this.id = this.element.id;
+
+		if (!this.id) throw new Error('Template element must have an id attribute.')
 	}
 
 	o.ViewModel.prototype.clear = function() {
@@ -195,7 +198,7 @@ this.rebind = this.rebind || {};
 	//Extract the template from the element, 
 	o.ViewModel.prototype.render = function(model) {
 		
-		this.template = this.element.innerHTML;
+		this.template = this.element.outerHTML;
 		this.tokens = writer.parse(this.template);
 
 		//Add control flow comment tokens
@@ -206,9 +209,11 @@ this.rebind = this.rebind || {};
 
 		//Render markup and apply to target element
 		var html = writer.renderTokens(this.tokens, context, null, this.template);
-		console.log('From template:' + html);
 
-		this.element.innerHTML = html;
+		//Replace html
+		this.element.outerHTML = html;
+		this.element = document.getElementById(this.id);
+
 		writer.postRender(this.element);
 	}
 	
@@ -226,7 +231,7 @@ this.rebind = this.rebind || {};
 		
 		//Now merge into the existing dom (the newer markup is the source)
 		//Merge will also merge the section and index values
-		o.mergeNodes(div.firstChild, this.element.firstChild, false);
+		o.mergeNodes(div.firstChild, this.element, false);
 	}
 
 	//Determine if the element template has been rendered yet and call appropriately
