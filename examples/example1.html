@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8" />
+	<title>Rebind Example 1</title>
+	<link rel="stylesheet" href="styles.css" type="text/css" media="screen">
+	
+	<script type="text/javascript" src="/bower_components/mustache/mustache.js"></script>
+	<script type="text/javascript" src="/src/rebind.js"></script>
+</head>
+<body>
+	
+	<h1>X-15 Test Flight Data</h1>
+	<dl id="test-flight">
+		<dt>Name:</dt><dd>{{firstName}} {{initial}} {{lastName}}</dd>
+		<dt>Flight No:</dt><dd>{{flight}}</dd>
+		<dt>Date:</dt><dd>{{date}}</dd>
+		<dt>Altitude:</dt><dd>{{altitude}} mi</dd>
+	</dl>
+
+	<script>
+		var model = {
+			firstName: 'Robert',
+			initial: 'M.',
+			lastName: 'White',
+			flight: 62,
+			date: '17 July 1962',
+			altitude: 59.6
+		}
+		
+		//Create a ViewModel from the template and apply our data
+		rebind.create('test-flight').apply(model);
+	</script>
+
+</body>
+</html>

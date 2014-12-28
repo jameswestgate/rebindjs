@@ -576,118 +576,301 @@
  * Released under the MIT license
  */
 
-this.Rebind = this.Rebind || {};
+this.rebind = this.rebind || {};
 
 (function(o) {
 
-	var writer = new Mustache.Writer(),
-		cache = {},
-		helpers = {},
-		helpersContext = new Mustache.Context(helpers);
-		id = 0;
+	var writer,
+		helpers,
+		helpersContext,
+
+		Object_toString = Object.prototype.toString,
+		isArray = Array.isArray || function (object) {
+    		return Object_toString.call(object) === '[object Array]';
+  		};
 
 	o.reset = function() {
-		cache = {};
-		id = 0;
+		writer = new o.Writer();
 		helpers = {};
 		helpersContext = new Mustache.Context(helpers);
 	}
 
-	//Extract the template from the element, 
-	o.render = function(element, view) {
+
+	//-- Override the Mustache writer with our own
+
+	o.Writer = function() {
 		
-		var template = element.innerHTML,
-			tokens = writer.parse(template);
+	}
 
-		//Add control flow comment tokens
-		Rebind.ninject(tokens);
+	o.Writer.prototype = new Mustache.Writer();
 
-		//Create context, injecting helpers as the parent
-		var context = o.getContext(view, helpers);
+	//Copied from the mustache implementation, with additions for section + index values
+	o.Writer.prototype.renderTokens = function(tokens, context, partials, originalTemplate) {
+		
+		var buffer = '';
 
-		//Render markup and apply to target element
-		element.innerHTML = writer.renderTokens(tokens, context, null, template);
+		// This function is used to render an arbitrary template
+		// in the current context by higher-order sections.
+		var self = this;
 
-		//Get or generate a cache key
-		var key = element.id;
-
-		if (!key || !key.length) {
-			key = 'id' + id;
-			element._rebindId = 'id' + id;
-
-			id++;
+		function subRender(template) {
+		  return self.render(template, context, partials);
 		}
 
-		//Cache template and token for future merges
-		cache[key] = {template: template, tokens: tokens};
+		var token, value;
+		for (var i = 0, len = tokens.length; i < len; ++i) {
+			token = tokens[i];
+
+			switch (token[0]) {
+			
+			case '#':
+				value = context.lookup(token[1]);
+				if (!value) continue;
+
+				if (isArray(value)) {
+					for (var j = 0, jlen = value.length; j < jlen; ++j) {
+						
+						//-- Rebindjs - add sections variables and inject section data wrapper 
+
+						//Add the index to the context
+						var childContext = context.push(value[j]),
+							cache = childContext.cache;
+
+						cache['@index'] = j;
+						cache['@index1'] = j + 1;
+						cache['@first'] = (j === 0) ? 'first' : '';
+						cache['@last'] = (j + 1 === jlen) ? 'last' : '';
+						cache['@even'] = (j % 2 === 0) ? 'even' : '';
+						cache['@odd'] = (j % 2 === 1) ? 'odd' : '';
+
+						buffer += '<!--#rebind '+ token[1] +  ',' + j + '-->';
+						buffer += this.renderTokens(token[4], childContext, partials, originalTemplate);
+						buffer += '<!--/rebind-->';
+						
+						//-- end modification
+				  	}
+				}
+				else if (typeof value === 'object' || typeof value === 'string') {
+				  	buffer += this.renderTokens(token[4], context.push(value), partials, originalTemplate);
+				} 
+				else if (typeof value === 'function') {
+					if (typeof originalTemplate !== 'string') {
+						throw new Error('Cannot use higher-order sections without the original template');
+					}
+
+				  	// Extract the portion of the original template that the section contains.
+				  	value = value.call(context.view, originalTemplate.slice(token[3], token[5]), subRender);
+
+				  	if (value != null) buffer += value;
+				} 
+				else {
+				  	buffer += this.renderTokens(token[4], context, partials, originalTemplate);
+				}
+
+				break;
+			
+			case '^':
+				value = context.lookup(token[1]);
+
+				// Use JavaScript's definition of falsy. Include empty arrays.
+				// See https://github.com/janl/mustache.js/issues/186
+				if (!value || (isArray(value) && value.length === 0)) {
+					buffer += this.renderTokens(token[4], context, partials, originalTemplate);
+				}
+
+				break;
+			
+			case '>':
+				if (!partials) continue;
+				value = (typeof partials === 'function') ? partials(token[1]) : partials[token[1]];
+				if (value != null) buffer += this.renderTokens(this.parse(value), context, partials, value);
+				break;
+			
+			case '&':
+				value = context.lookup(token[1]);
+				if (value != null) buffer += value;
+				break;
+			case 'name':
+				value = context.lookup(token[1]);
+
+				//-- Change scope from mustache to Mustache
+				if (value != null) buffer += Mustache.escape(value);
+				//-- End change
+
+				break;
+			case 'text':
+				buffer += token[1];
+				break;
+			}
+		}
+
+		//-- Replace any double comments in the buffer
+		buffer = buffer.replace(/<!--\s*<!--/g, '<!--');
+		buffer = buffer.replace(/-->\s*-->/g, '-->');
+		//-- End addition
+
+		return buffer;
+	}
+
+	o.Writer.prototype.postRender = function(element) {
+
+		var nodes = element.childNodes,
+			node,
+			data,
+			remove = [];
+
+		for (var i=0, len=nodes.length; i<len; i++) {
+			node = nodes[i];
+
+			//Comment
+			if (node.nodeType === 8) {
+
+				if (node.nodeValue.lastIndexOf('#rebind') === 0) {
+					data = node.nodeValue.substring(8).split(',');
+					remove.push(node);
+				}
+				else if (node.nodeValue.lastIndexOf('/rebind') === 0) {
+					data = null;
+					remove.push(node);
+				}
+			}
+
+			if (data) {
+				node._section = data[0];
+				node._index = data[1];
+			}
+
+			if (node.childNodes) o.Writer.prototype.postRender(node);
+		}
+
+		//Now remove the section comments
+		for (var j=0, len=remove.length; j<len; j++) {
+			element.removeChild(remove[j]);
+		}		
+	}
+
+
+	//-- Define the ViewModel class
+
+	o.ViewModel = function(element) {
+		
+		if (typeof element === 'string') element = document.getElementById(element);
+
+		this.element = element;
+		this.id = this.element.id;
+
+		if (!this.id) throw new Error('Template element must have an id attribute.')
+	}
+
+	o.ViewModel.prototype.clear = function() {
+		this.element = null;
+		this.detach();
+	}
+
+	//Extract the template from the element, 
+	o.ViewModel.prototype.render = function(model) {
+		
+		this.template = this.element.outerHTML;
+		this.tokens = writer.parse(this.template);
+
+		//Add control flow comment tokens
+		o.inject(this.tokens);
+
+		//Create context, injecting helpers as the parent
+		var context = o.getContext(model, helpers);
+
+		//Render markup and apply to target element
+		var html = writer.renderTokens(this.tokens, context, null, this.template);
+
+		//Replace html
+		this.element.outerHTML = html;
+		this.element = document.getElementById(this.id);
+
+		writer.postRender(this.element);
 	}
 	
-	o.merge = function(element, view) {
+	o.ViewModel.prototype.merge = function(model) {
 
-		var div = document.createElement('div'),
-			key = element._rebindId || element.id;
+		var div = document.createElement('div');
 
 		//Document fragments require a child node to add innerHTML
 		document.createDocumentFragment().appendChild(div);
 
 		//It is easiest to get a new context rather than clear the cache.
-		//Render the view into the div
-		div.innerHTML = writer.renderTokens(cache[key].tokens, o.getContext(view), null, cache[key].template);
-	
-		//Now merge and test (the newer markup is the source)
-		o.mergeNodes(div.firstChild, element.firstChild, element, 0, 0);
- 	}
+		//Render the model into the div
+		div.innerHTML = writer.renderTokens(this.tokens, o.getContext(model), null, this.template);
+		writer.postRender(div);
+		
+		//Now merge into the existing dom (the newer markup is the source)
+		//Merge will also merge the section and index values
+		o.mergeNodes(div.firstChild, this.element, false);
+	}
 
- 	//Determine if the element template has been rendered yet and call appropriately
- 	o.bind = function(element, view) {
+	//Determine if the element template has been rendered yet and call appropriately
+	o.ViewModel.prototype.apply = function(model) {
 
- 		var key = element.id || element._rebindId,
- 			method = cache[key] ? 'merge' : 'render';
+		var	method = this.template && this.tokens ? 'merge' : 'render';
 
-		o[method](element, view);
- 	}
+		this[method](model);
+		this.attach(model);
+	}
 
- 	//Register a helper function with Rebind. 
- 	//The tokeniser will use this to create a lambda function and to bind helpers to views
- 	o.registerHelper = function(name, fn) {
- 		
- 		helpers[name] = function() {
+	//Watch for change events and update model accordingly
+	//The element originating the change event must have a 'name' or 'data-name' attribute
+	o.ViewModel.prototype.attach = function(model) {
 
- 			return function() {
- 				
- 				var parameters = arguments[0].split(' '),
- 					argsArray = [];
+		//Add / replace a listener to the template
+		attachListener(this.element, model, false);
+	}
 
- 				//Lookup each argument in the view context
- 				for (var i=0, len=parameters.length; i<len; i++) {
+	//Remove any event handlers for this viewmodel
+	o.ViewModel.prototype.detach = function(model) {
+		attachListener(this.element, model, true);
+	}
 
- 					//Check for literal syntax
+	//Register a helper function with rebind. 
+	//The tokeniser will use this to create a lambda function and to bind helpers to views
+	o.registerHelper = function(name, fn) {
+		
+		helpers[name] = function() {
+
+			return function() {
+				
+				var parameters = arguments[0].split(' '),
+					argsArray = [];
+
+				//Lookup each argument in the view context
+				for (var i=0, len=parameters.length; i<len; i++) {
+
+					//Check for literal syntax
 					var parameter = parameters[i],
 						first = parameter.slice(0, 1),
 						last = parameter.slice(-1);
 
- 					argsArray.push((first === '"' && last === '"') || (first === "'" && last === "'") ? parameter.slice(1,-1): this[parameter]);
- 				}
+					argsArray.push((first === '"' && last === '"') || (first === "'" && last === "'") ? parameter.slice(1,-1): this[parameter]);
+				}
 
- 				//Add subrender as last argument
- 				argsArray.push(arguments[1]);
+				//Add subrender as last argument
+				argsArray.push(arguments[1]);
 
- 				return fn.apply(this, argsArray);
- 			}
- 		};
- 	}
+				return fn.apply(this, argsArray);
+			}
+		};
+	}
 
- 	//Get a context that includes the registered helpers
- 	o.getContext = function(view) {
- 		
+	//Get a context that includes the registered helpers
+	o.getContext = function(view) {
+		
 		return new Mustache.Context(view, helpersContext);
- 	}
+	}
 
- 	//Inject section tokens (as comments) to allow us to pick up dom changes accurately
+	o.create = function(element) {
+		return new o.ViewModel(element);
+	}
 
- 	//Helpers - expand name tokens with spaces into lambdas
- 	//eg {{format x y z}} to {{#format}}x y z{{/format}}
-	o.ninject = function(branch) {
+	//Inject Helpers into template by expanding name tokens with spaces into lambdas
+	//eg {{format x y z}} to {{#format}}x y z{{/format}}
+	o.inject = function(branch) {
 
 		var i = 0;
 
@@ -714,234 +897,214 @@ this.Rebind = this.Rebind || {};
 				token.push(end - 2);
 			}
 
-			//Control token
-			if (isSection) {
-
-				branch.splice(i, 0, ['text', '<!--' + token[0] + '-->', token[2], token[3]]);
-				i++;
-
-				//recurse subtree
-				o.ninject(token[4]);
-			}
-
+			//recurse subtree
+			if (isSection) o.inject(token[4]);
+ 
 			i++;
-
-			//Close control token
-			if (isSection) {
-				
-				branch.splice(i, 0, inject = ['text', '<!--/-->', token[2], token[3]]);
-				i++;
-			}
 		}
 	}
 
 	//Recurse through the source dom tree and apply changes to the target
-	o.mergeNodes = function(source, target, targetParent, level, index) {
+	o.mergeNodes = function(source, target, removeAttributes) {
 
-		//Source and target can be null if text node was removed
-		if (!source && !target) return;
+		//First, reset any model binding data
+		target._section = null;
+		target._index = null;
 
-		//Cahce node types
-		var sourceType = source && source.nodeType,
-			targetType = target && target.nodeType;
+		//Map binding information
+		if (source.section) {
+			target._section = source._section;
+			target._index = source._index;
+		}
 
-		//Text node insertion
-		if (sourceType === 3 && (!target || targetType !==3)) {
+		//Update comments and text nodes
+		if ((source.nodeType  === 3 && target.nodeType === 3) || (source.nodeType === 8 && target.nodeType === 8)) {
 			
-			//Text node insertion
-			if (!target) {
-				console.log('+ Cloned and inserted text node for empty target.');
-				targetParent.appendChild(source.cloneNode(false));
+			//Compare and update		
+			if (target.nodeValue !== source.nodeValue) {
+				console.log('> Updating comment/text value - source:' + source.nodeValue + ', target:' + target.nodeValue);
+
+				target.nodeValue = source.nodeValue;
 			}
-			else {
-				console.log('+ Cloned and inserted text node before target.');
-				targetParent.insertBefore(source.cloneNode(false), target);
-			}
+			
+			//No attributes or child elements, so we are done
 			return;
-		}
-			
-		//Text node removal
-		if (targetType === 3  && (!source || sourceType !==3)) {
-
-			console.log('- Remove text node from target.');
-			targetParent.removeChild(target);
-
-			if (!source) return;
-
-			//Continue
-			target = targetParent.childNodes[index];
-		}
-
-		//Detect if we have hit the start of a section
-		if (sourceType === 8 && targetType === 8) {
-			
-			if (source.nodeValue === '#') {
-				
-				//Get the index of the next end marker
-				var sourceIdx = getSectionEnd(source),
-					targetIdx = getSectionEnd(target);
-
-				//Some kind of failure, return
-				if (!sourceIdx || !targetIdx) {
-					console.log('rebind.js: Could not find end of section.');/*RemoveLogging:skip*/
-				}
-
-				//Load all elements in the target between source and targetidx's into an associative array by id
-				//elements without an id get p1, p2 etc
-				var map = mapElements(targetParent, index + 1, targetIdx);
-
-				//Now loop through each source node and get the relevant target node
-				var idx = index + 1,
-					count = 0;
-
-				while (idx < sourceIdx){
-
-					var node = source.parentNode.childNodes[idx],
-						bound = targetParent.childNodes[idx],
-						id = node.id;
-
-					if (!id) {
-						id = 'p' + count;
-						count++;
-					}
-
-					//Check if the node has an id
-					//If exists in target map, then move that node to the correct position 
-					//This will usually be the same node, which means no dom move is necessary
-					//Otherwise clone the node from the source (ie new inserts)
-					var existing = map[id];
-					if (existing) {
-
-						if (existing !== bound) {
-
-							console.log('^ Move mode with id:' + id + ' before:' + bound);
-							targetParent.insertBefore(existing, bound);
-						}
-					}
-					else {
-
-						console.log('+ Clone and added node with id: ' + id);
-						targetParent.insertBefore(node.cloneNode(true), bound);
-
-						targetIdx++;
-					}
-
-					idx++;
-				}
-
-				//Remove any tail nodes in the target
-				while (sourceIdx < targetIdx) {
-					
-					console.log('- Removed node at index:' + idx);
-					targetParent.removeChild(targetParent.childNodes[idx]);
-
-					sourceIdx ++;
-				}
-			}
-			else {
-				//Normal comments, just update
-				target.nodeValue = source.nodeValue
-			}
-
-			return;
-		}
-
-		//Now we have compared comment nodes, we can compare branch equality
-		if (source.isEqualNode(target)) return;
-
-		//Compare text nodes
-		if (sourceType === 3 && targetType === 3) {
-			
-			console.log('> Push text values - source:' + source.nodeValue + ', target:' + target.nodeValue);
-			target.nodeValue = source.nodeValue;
-
-			return;
-		}
-
-		//Element tagName changes ie <{{name}} ... >
-		if (source.tagName !== target.tagName) {
-			
-			console.log('> Tag replacement: ' + target.tagName + ' -> ' + source.tagName);
-			targetParent.replaceChild(source.cloneNode(true), target);
-			return;
-		}
-
-		//Iterate through any child nodes
-		var length = (source.childNodes.length < target.childNodes.length) ? target.childNodes.length : source.childNodes.length;
-
-		if (length) {
-
-			//Now loop recursively.
-			for (var i = 0; i<length; i++) {
-				o.mergeNodes(source.childNodes[i], target.childNodes[i], target, level + 1, i);
-			}
-
-			if (source.isEqualNode(target)) return;
 		}
 
 		//Update any attributes
 		if (source.attributes && target.attributes) { 
 		
-			var attributes = source.attributes;
+			var attributes = source.attributes,
+				value,
+				name;
 
+			//Add / update attributes
 			for (var i=0, len=attributes.length; i<len; i++) {
 
-				var value = attributes[i].nodeValue,
-					name = attributes[i].nodeName;
+				value = attributes[i].nodeValue;
+				name = attributes[i].nodeName;
 
 				if (target.getAttribute(name) !== value) {
 					
-					console.log('+ Push attribute values for:' + name + ' - source:'+ attributes[i].nodeValue + ', target:' + target.attributes[i].nodeValue);
+					console.log('+ Set attribute value for:' + name + ' - source:'+ attributes[i].nodeValue + ', target:' + target.attributes[i].nodeValue);
 					target.setAttribute(name, value);
 				}
 			}
-		}		
-	}
 
+			//Remove attributes
+			if (removeAttributes){
+				attributes = target.attributes;
 
-	//Starting with the comment node 
-	function getSectionEnd(node) {
-		var count = 0,
-			index = 0;
+				for (var i=0, len=attributes.length; i<len; i++) {
 
-		while (node) {
+					name = attributes[i].nodeName;
+
+					if (source.getAttribute(name) === null) {
+						
+						console.log('- remove target attribute:' + name);
+						target.removeAttribute(name);
+					}
+				}
+			}
+		}
+
+		//Return if equal after attribute update
+		if (source.isEqualNode(target)) return;
+
+		//Insert, delete and move child nodes based on predicted id
+		//Resetting any model binding attributes in the loop below
+		if (source.childNodes && target.childNodes) {
 			
-			if (node.nodeType === 8) {
-				if (node.nodeValue === '#') {
-					count ++
-				} 
-				else if (node.nodeValue === '/') {
-					count --;
-					if (count === 0) return index;
+			var	map = mapElements(target.childNodes),
+				tags = {},
+				nodes = source.childNodes;
+
+			//Now loop through each source node and get the relevant target node
+			for (var i=0, len=nodes.length; i<len; i++) {
+
+				var node = nodes[i],
+					bound = target.childNodes[i],
+					id = (node.id) ? node.id : generateId(node, tags);
+
+				//Check if the node has an id
+				//If exists in target map, then move that node to the correct position 
+				//This will usually be the same node, which means no dom move is necessary
+				//Otherwise clone the node from the source (ie new inserts)
+				var existing = map[id];
+				
+				if (existing) {
+
+					if (existing !== bound) {
+
+						console.log('^ Move mode with id:' + id + ' before:' + bound);
+						target.insertBefore(existing, bound);
+					}
+				}
+				else {
+
+					console.log('+ Clone and added node with id: ' + id);
+					target.insertBefore(node.cloneNode(true), bound);
 				}
 			}
 
-			index ++;
-			node = node.nextSibling;
+			//Remove any tail nodes in the target
+			while (target.childNodes.length > source.childNodes.length) {
+				
+				var remove = target.childNodes[target.childNodes.length -1];
+				
+				console.log('- Remove node: ' + remove);
+				
+				target.removeChild(remove);
+			}
 		}
 
-		return null;
+		//Iterate through any child nodes
+		var length = source.childNodes.length;
+
+		if (length) {
+
+			for (var i = 0; i<length; i++) {
+				o.mergeNodes(source.childNodes[i], target.childNodes[i], removeAttributes);
+			}
+		}
 	}
 
-	//Return a map of live elements and their ids, or generate a predicatable id if one does not exists
-	function mapElements(parent, start, end) {
-		var nodes = parent.childNodes,
-			map = {},
-			count = 0;
 
-		for (var i=start; i<end; i++) {
-			var node = nodes[i];
+	//Return a map of live elements and their ids, or generate a predicatable id if one does not exist
+	function mapElements(nodes) {
 
-			if (node.id) {
-				map[node.id] = node;
-			}
-			else {
-				map['p' + count] = node;
-				count++;
-			}
+		var map = {},
+			tags = {},
+			node;
+
+		for (var i=0, len=nodes.length; i<len; i++) {
+			
+			node = nodes[i];
+
+			//Use the id provided or generate and id based on existing usage
+			map[(node.id) ? node.id : generateId(node, tags)] = node;
 		}
 
 		return map;
 	}
 
- })(this.Rebind);
+	//Create a unique id, using the tags collection for disambiguation
+	function generateId(node, tags) {
+
+		//Get the tag or create one from other node types
+		var tag = (node.tagName) ? node.tagName : 'x' + node.nodeType;
+
+		//Set the counter to zero
+		if (!tags[tag]) tags[tag] = 0;
+
+		//Increment the counter for that tag
+		tags[tag]++;
+
+		return tag + tags[tag];
+	}
+
+	function attachListener(element, model, remove) {
+
+		//Always try remove any previous listeners
+		element.removeEventListener('change', eventListener);
+		if (remove) return;
+
+		element.addEventListener('change', eventListener);
+
+		//Make the handled argument available via a closure
+		function eventListener(e) {
+			
+			//Check the event target to see if it has a name or data-name attribute
+			var target = e.target || e.srcElement || e.originalTarget,
+				name = target.getAttribute('name') || target.getAttribute('data-name');
+
+			if (!name) return;
+
+			var sections = [];
+
+			//Loop up the dom from the target to this element, collecting section information
+			while (target !== element) {
+				if (target._section) sections.push([target._section, target._index]);
+				target = target.parentNode;
+			}
+
+			//Loop through the sections and set the model
+			var scope = model,
+				section;
+
+			while (sections.length) {
+				section = sections.pop();
+				
+				if (scope[section[0]]) {
+					scope = scope[section[0]];
+					if (scope[parseInt(section[1], 10)]) scope = scope[parseInt(section[1], 10)];
+				}
+			}
+
+			scope[name] = e.target.value;
+		};
+	}
+
+	o.reset();
+
+ })(this.rebind);
