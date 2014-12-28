@@ -71,9 +71,9 @@ this.rebind = this.rebind || {};
 						cache['@even'] = (j % 2 === 0) ? 'even' : '';
 						cache['@odd'] = (j % 2 === 1) ? 'odd' : '';
 
-						buffer += '<div data-rebind="' + token[1] +  ',' + j + '">';
+						buffer += '<!--#rebind '+ token[1] +  ',' + j + '-->';
 						buffer += this.renderTokens(token[4], childContext, partials, originalTemplate);
-						buffer += '</div>';
+						buffer += '<!--/rebind-->';
 						
 						//-- end modification
 				  	}
@@ -132,38 +132,49 @@ this.rebind = this.rebind || {};
 			}
 		}
 
+		//-- Replace any double comments in the buffer
+		buffer = buffer.replace(/<!--\s*<!--/g, '<!--');
+		buffer = buffer.replace(/-->\s*-->/g, '-->');
+		//-- End addition
+
 		return buffer;
 	}
 
 	o.Writer.prototype.postRender = function(element) {
 
-		var elements = element.querySelectorAll('[data-rebind]'),
-			div,
-			nodes,
-			section,
-			idx,
-			parent,
-			node;
+		var nodes = element.childNodes,
+			node,
+			data,
+			remove = [];
 
-		for (var i=0, len=elements.length; i<len; i++) {
-			div = elements[i];
-			nodes = div.childNodes;
-			data = div.getAttribute('data-rebind').split(',');
-			parent = div.parentNode;
-			
-			//Loop through each child node, adding the values as (safe) expando properties
-			while (nodes.length) {
-				node = nodes[0];
-				node._section = data[0];
-				node._index = data[1];
+		for (var i=0, len=nodes.length; i<len; i++) {
+			node = nodes[i];
 
-				//Unwrap the element form the div
-				parent.insertBefore(node, div);
+			//Comment
+			if (node.nodeType === 8) {
+
+				if (node.nodeValue.lastIndexOf('#rebind') === 0) {
+					data = node.nodeValue.substring(8).split(',');
+					remove.push(node);
+				}
+				else if (node.nodeValue.lastIndexOf('/rebind') === 0) {
+					data = null;
+					remove.push(node);
+				}
 			}
 
-			//Now remove the div wrapper from the parent
-			parent.removeChild(div);
+			if (data) {
+				node._section = data[0];
+				node._index = data[1];
+			}
+
+			if (node.childNodes) o.Writer.prototype.postRender(node);
 		}
+
+		//Now remove the section comments
+		for (var j=0, len=remove.length; j<len; j++) {
+			element.removeChild(remove[j]);
+		}		
 	}
 
 
@@ -194,7 +205,10 @@ this.rebind = this.rebind || {};
 		var context = o.getContext(model, helpers);
 
 		//Render markup and apply to target element
-		this.element.innerHTML = writer.renderTokens(this.tokens, context, null, this.template);
+		var html = writer.renderTokens(this.tokens, context, null, this.template);
+		console.log('From template:' + html);
+
+		this.element.innerHTML = html;
 		writer.postRender(this.element);
 	}
 	

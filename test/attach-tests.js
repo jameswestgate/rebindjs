@@ -234,7 +234,7 @@
 		ok(input.eq(2).val() === 'do task5', 'Input value populated: ' + input.eq(2).val());
 		ok(input.eq(3).val() === 'do task6', 'Input value populated: ' + input.eq(3).val());
 		
-		//The event collects mappings as it travels up the dom tree until it arrives at the body
+		//The event collects mappings as it travels up the dom tree until it arrives at the parent element
 
 		//Update task 5
 		input.eq(1).val('updated');
@@ -246,13 +246,14 @@
 		//Clear handlers for following test
 		vm.detach();
 
-		ok(model.robots[1].tasks[1].desc === 'updated', 'Model value updated');
+		ok(model.robots[1].tasks[1].desc === 'updated', $(fixture).html());
 	});
 
 	test('nested commented sections', function() {
 		
 		var template = 
 			'<table id="robot-table">' + 
+			'<tbody>' +
 			'<!--{{#robots}}-->' + 
 			'<tr id="robot-{{robot}}"><td>' +
 			'<ul class="tasks-list">' +
@@ -262,6 +263,7 @@
 			'</ul>' + 
 			'</td></tr>' +
 			'<!--{{/robots}}-->' + 
+			'</tbody>' +
 			'</table>';
 
 		var bob = {robot: 'bob', tasks: [
@@ -305,8 +307,6 @@
 		ok(input.eq(2).val() === 'do task5', 'Input value populated: ' + input.eq(2).val());
 		ok(input.eq(3).val() === 'do task6', 'Input value populated: ' + input.eq(3).val());
 		
-		//The event collects mappings as it travels up the dom tree until it arrives at the body
-
 		//Update task 5
 		input.eq(1).val('updated');
 
@@ -317,7 +317,7 @@
 		//Clear handlers for following test
 		vm.detach();
 
-		ok(model.robots[1].tasks[1].desc === 'updated', 'Model value updated');
+		ok(model.robots[1].tasks[1].desc === 'updated', $(fixture).html());
 	});
 	
 })();
