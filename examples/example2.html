@@ -27,14 +27,15 @@
 		}
 
 		//Create a ViewModel from the template and apply our data
-		var viewModel = rebind.create('test-flight');
-		viewModel.apply(model);
+		var view = new rebind.View('test-flight');
+		view.apply(model);
 
 		model.date = '19 July 1963';
 		model.altitude = 65.8;
 		
 		//Apply the new model without re-rendering the template
-		viewModel.apply(model);
+		view.apply(model);
+
 	</script>
 
 </body>

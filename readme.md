@@ -1,13 +1,16 @@
 Rebind js
 =========
 
-A lightweight Model View Viewmodel (MVVM) library using Mustache templating, focussing on out-the-box developer productivity.
-Uses plain Javascript objects to intelligently modify existing DOM elements.
+A lightweight standards-based model-view-controller library using Mustache templating, focusing on out-the-box developer productivity.
+Uses plain Javascript objects to intelligently create and modify DOM elements with two-way model binding.
+
 
 TODO:
 
-- Update the model only on valid input
-- Helper to attach event handlers to elements in the template
+- Create a pattern to work with htm5 validation + older browser polyfills
+- Helper to attach / detach event handlers to elements in the template
+- Move model context function to the controller
+- Link views to controllers
 
 
 

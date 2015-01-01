@@ -178,25 +178,43 @@ this.rebind = this.rebind || {};
 	}
 
 
-	//-- Define the ViewModel class
+	//-- Define the View class
 
-	o.ViewModel = function(element) {
+	o.View = function(element, nodeType) {
 		
+		//Process id
 		if (typeof element === 'string') element = document.getElementById(element);
+
+		//Process script tag templates by replacing script with content
+		if (element.tagName === 'SCRIPT' && element.getAttribute('type') === 'text/html') {
+
+			var div = document.createElement(nodeType || 'div');
+			div.innerHTML = element.textContent;
+
+			//Copy across attributes (including id, excluding type)
+			for (var i=0, len=element.attributes.length; i<len; i++) {
+				var attr = element.attributes[i];
+				if (attr.name !== 'type') div.setAttribute(attr.name, attr.value);
+			}
+
+			element.parentNode.replaceChild(div, element);
+			element = div;
+		}
 
 		this.element = element;
 		this.id = this.element.id;
+		this.children = {};
 
-		if (!this.id) throw new Error('Template element must have an id attribute.')
+		if (!this.id) throw new Error('Template element must have an id attribute.');
 	}
 
-	o.ViewModel.prototype.clear = function() {
+	o.View.prototype.clear = function() {
 		this.element = null;
 		this.detach();
 	}
 
 	//Extract the template from the element, 
-	o.ViewModel.prototype.render = function(model) {
+	o.View.prototype.render = function(model) {
 		
 		this.template = this.element.outerHTML;
 		this.tokens = writer.parse(this.template);
@@ -217,12 +235,9 @@ this.rebind = this.rebind || {};
 		writer.postRender(this.element);
 	}
 	
-	o.ViewModel.prototype.merge = function(model) {
+	o.View.prototype.merge = function(model) {
 
 		var div = document.createElement('div');
-
-		//Document fragments require a child node to add innerHTML
-		document.createDocumentFragment().appendChild(div);
 
 		//It is easiest to get a new context rather than clear the cache.
 		//Render the model into the div
@@ -235,7 +250,7 @@ this.rebind = this.rebind || {};
 	}
 
 	//Determine if the element template has been rendered yet and call appropriately
-	o.ViewModel.prototype.apply = function(model) {
+	o.View.prototype.apply = function(model) {
 
 		var	method = this.template && this.tokens ? 'merge' : 'render';
 
@@ -245,16 +260,112 @@ this.rebind = this.rebind || {};
 
 	//Watch for change events and update model accordingly
 	//The element originating the change event must have a 'name' or 'data-name' attribute
-	o.ViewModel.prototype.attach = function(model) {
+	o.View.prototype.attach = function(model) {
 
 		//Add / replace a listener to the template
-		attachListener(this.element, model, false);
+		attachListener(this, model, false);
 	}
 
 	//Remove any event handlers for this viewmodel
-	o.ViewModel.prototype.detach = function(model) {
-		attachListener(this.element, model, true);
+	o.View.prototype.detach = function(model) {
+		attachListener(this, model, true);
 	}
+
+	o.View.prototype.add = function(selector, name) {
+		this.children[selector] = name;
+	}
+
+	o.View.prototype.getModelContext = function(target, model) {
+
+		var sections = [];
+
+		//Loop up the dom from the target to this element, collecting section information
+		while (target !== this.element) {
+			if (target._section) sections.push([target._section, target._index]);
+			target = target.parentNode;
+		}
+
+		//Loop through the sections and set the model
+		var scope = model,
+			section;
+
+		while (sections.length) {
+			section = sections.pop();
+			
+			if (scope[section[0]]) {
+				scope = scope[section[0]];
+				if (scope[parseInt(section[1], 10)]) scope = scope[parseInt(section[1], 10)];
+			}
+		}
+
+		return scope;
+	}
+
+
+	//-- Controller
+	o.Controller = function(name) {
+		this.name = name;
+	}
+
+
+	//-- Module
+	o.Module = function(base, name) {
+		this.base = base || window;
+		this.name = name;
+	}
+
+	//Create a view and map any children
+	o.Module.prototype.view = function(element, children) {
+		
+		var result = new o.View(element);
+
+		for (var key in children) {
+			result.add(key, children[key]);
+		}
+
+		return result;
+	}
+
+	o.Module.prototype.controller = function(name) {
+		
+		if (!/Controller$/.test('name')) name += 'Controller';
+
+		this.base[name] = new o.Controller(name);
+
+		return result;
+	}
+
+
+	//-- Factory functions
+
+	//Create a module in an optional namespace
+	o.module = function(namespace, fn) {
+		
+		//Get the name and add any namespace objects
+		var base = window,
+			arr = namespace.split('.'),
+			name = arr.pop();
+
+		if (!/Module$/.test('name')) name += 'Module';
+
+		if (arr.length) {
+		
+			//Set up the namespace objects
+			for (var i=0, len=arr.length; i<len; i++) {
+				base = base[arr[i]] = base[arr[i]] || {};
+			}
+		}
+
+		base[name] = new o.Module(base, name);
+
+		//Execute any functions
+		if (fn && fn === 'function') fn.call(base[name]);
+
+		return base[name];
+	}
+
+
+	//-- Implementation
 
 	//Register a helper function with rebind. 
 	//The tokeniser will use this to create a lambda function and to bind helpers to views
@@ -290,10 +401,6 @@ this.rebind = this.rebind || {};
 	o.getContext = function(view) {
 		
 		return new Mustache.Context(view, helpersContext);
-	}
-
-	o.create = function(element) {
-		return new o.ViewModel(element);
 	}
 
 	//Inject Helpers into template by expanding name tokens with spaces into lambdas
@@ -457,7 +564,6 @@ this.rebind = this.rebind || {};
 		}
 	}
 
-
 	//Return a map of live elements and their ids, or generate a predicatable id if one does not exist
 	function mapElements(nodes) {
 
@@ -491,7 +597,9 @@ this.rebind = this.rebind || {};
 		return tag + tags[tag];
 	}
 
-	function attachListener(element, model, remove) {
+	function attachListener(view, model, remove) {
+
+		var element = view.element;
 
 		//Always try remove any previous listeners
 		element.removeEventListener('change', eventListener);
@@ -508,27 +616,7 @@ this.rebind = this.rebind || {};
 
 			if (!name) return;
 
-			var sections = [];
-
-			//Loop up the dom from the target to this element, collecting section information
-			while (target !== element) {
-				if (target._section) sections.push([target._section, target._index]);
-				target = target.parentNode;
-			}
-
-			//Loop through the sections and set the model
-			var scope = model,
-				section;
-
-			while (sections.length) {
-				section = sections.pop();
-				
-				if (scope[section[0]]) {
-					scope = scope[section[0]];
-					if (scope[parseInt(section[1], 10)]) scope = scope[parseInt(section[1], 10)];
-				}
-			}
-
+			var scope = view.getModelContext(target, model);
 			scope[name] = e.target.value;
 		};
 	}

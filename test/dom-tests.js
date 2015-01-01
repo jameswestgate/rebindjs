@@ -15,11 +15,11 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('template');
-		vm.render(modelA);
+		var view = new rebind.View('template');
+		view.render(modelA);
 
 		var element1 = fixture.find('li')[0];
-		vm.merge(modelB);
+		view.merge(modelB);
 
 		var element2 = fixture.find('li')[0];
 
@@ -40,11 +40,11 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 
-		var vm = rebind.create('template');
-		vm.render(modelA);
+		var view = new rebind.View('template');
+		view.render(modelA);
 
 		var element1 = fixture.find('li')[0];
-		vm.merge(modelB);
+		view.merge(modelB);
 
 		var element2 = fixture.find('li')[0];
 
@@ -63,11 +63,11 @@
 
 		rebind.reset();
 
-		var vm = rebind.create('template');
-		vm.render(model);
+		var view = new rebind.View('template');
+		view.render(model);
 
 		model.name = 'two';
-		vm.merge(model);
+		view.merge(model);
 
 		ok(fixture.find("li:contains('two')").length, fixture.html());
 	});
@@ -83,11 +83,11 @@
 
 		rebind.reset();
 		
-		var vm = rebind.create('template');
-		vm.render(model);
+		var view = new rebind.View('template');
+		view.render(model);
 
 		model.name = 'two';
-		vm.merge(model);
+		view.merge(model);
 
 		ok(fixture.find("li:contains('two')").length, fixture.html());
 	});
@@ -103,8 +103,8 @@
 
 		rebind.reset();
 		
-		var vm = rebind.create('template');
-		vm.render(model);
+		var view = new rebind.View('template');
+		view.render(model);
 
 		ok(fixture.find("#template[data-test='ok']").length === 1, fixture.html());
 		ok(fixture.find("li:contains('one')").length, fixture.html());
@@ -112,10 +112,61 @@
 		model.name = 'two';
 		model.test = "computer";
 
-		vm.merge(model);
+		view.merge(model);
 
 		ok(fixture.find("#template[data-test='computer']").length === 1, fixture.html());
 		ok(fixture.find("li:contains('two')").length, fixture.html());
+	});
+
+	test('script tag progressive enhancement', function() {
+		
+		//Use text/html for the type - any mime type is valid for html5
+		var template = '<script type="text/html" id="template"><ul><li>{{name}}</li></ul></script>',
+			modelA = {name: 'one'},
+			modelB = {name: 'two'};
+
+		//Take template and add as-is to the dom
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
+
+		rebind.reset();
+
+		var view = new rebind.View('template');
+		view.render(modelA);
+
+		var element1 = fixture.find('li')[0];
+		view.merge(modelB);
+
+		var element2 = fixture.find('li')[0];
+
+		ok(fixture.find("li:contains('two')").length, 'Results found.');
+		ok(element1 === element2, 'Element references match.')
+	});
+
+	test('script tag alternate nodetype', function() {
+		
+		//Use text/html for the type - any mime type is valid for html5
+		var template = '<script type="text/html" id="template"><ul><li>{{name}}</li></ul></script>',
+			modelA = {name: 'one'},
+			modelB = {name: 'two'};
+
+		//Take template and add as-is to the dom
+		var fixture = $('#qunit-fixture');
+		fixture.html(template);
+
+		rebind.reset();
+
+		var view = new rebind.View('template', 'section');
+		view.render(modelA);
+
+		var element1 = fixture.find('li')[0];
+		view.merge(modelB);
+
+		var element2 = fixture.find('li')[0];
+
+		ok(fixture.find("li:contains('two')").length, 'Results found.');
+		ok(fixture.find("section#template").length, 'Section found.');
+		ok(element1 === element2, 'Element references match.')
 	});
 	
 })();

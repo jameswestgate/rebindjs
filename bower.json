@@ -5,7 +5,7 @@
   "authors": [
     "James Westgate <jameswestgate@icloud.com>"
   ],
-  "description": "Intelligent dom data binding using mustache templating",
+  "description": "Lightweight mvc framework using Mustache templating.",
   "main": "/dist/rebind.min.js",
   "moduleType": [
     "globals"

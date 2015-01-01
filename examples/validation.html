@@ -2,21 +2,32 @@
 <html>
 <head>
 	<meta charset="UTF-8" />
-	<title>Rebind Example 1</title>
+	<title>Rebind Validation</title>
 	<link rel="stylesheet" href="styles.css" type="text/css" media="screen">
 	
 	<script type="text/javascript" src="/bower_components/mustache/mustache.js"></script>
 	<script type="text/javascript" src="/src/rebind.js"></script>
+
+	<style>
+		input:invalid {
+			border:solid 2px red;
+		}
+
+		input:valid {
+			border: solid 2px green;
+		}
+	</style>
 </head>
 <body>
 	
-	<h1>X-15 Test Flight Data</h1>
-	<dl id="test-flight">
-		<dt>Name:</dt><dd>{{firstName}} {{initial}} {{lastName}}</dd>
-		<dt>Flight No:</dt><dd>{{flight}}</dd>
-		<dt>Date:</dt><dd>{{date}}</dd>
-		<dt>Altitude:</dt><dd>{{altitude}} mi</dd>
-	</dl>
+	<h1>Validation Test</h1>
+	<form id="test-flight-form">
+		<fieldset>
+			<label for="firstName">First Name</label><input id="firstName" value="{{firstName}}">
+			<label for="lastName">Last Name</label><input id="lastName" value="{{lastName}}" required>
+			<input type="submit">
+		</fieldset>
+	</form>
 
 	<script>
 		var model = {
@@ -29,7 +40,7 @@
 		}
 		
 		//Create a ViewModel from the template and apply our data
-		var view = new rebind.View('test-flight');
+		var view = new rebind.View('test-flight-form');
 		view.apply(model);
 
 

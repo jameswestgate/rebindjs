@@ -14,8 +14,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('template');
-		vm.apply(model);
+		var view = new rebind.View('template');
+		view.apply(model);
 
 		//Should automatically update the model
 		var input = fixture.find('input');
@@ -28,7 +28,7 @@
 		input[0].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.field === 'two', 'Model value updated');
 	});
@@ -45,8 +45,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('template');
-		vm.apply(model);
+		var view = new rebind.View('template');
+		view.apply(model);
 
 		//Should automatically update the model
 		var input = fixture.find('input');
@@ -59,7 +59,7 @@
 		input[0].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.field === 'one', 'Model value not updated');
 		ok(model.out === 'two', 'Model value updated');
@@ -77,8 +77,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('template');
-		vm.apply(model);
+		var view = new rebind.View('template');
+		view.apply(model);
 		
 		//Should automatically update the model
 		var input = fixture.find('input');
@@ -91,7 +91,7 @@
 		input[0].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.field === 'two', 'Model value updated');
 	});
@@ -109,8 +109,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 
-		var vm = rebind.create('template');
-		vm.apply(model);
+		var view = new rebind.View('template');
+		view.apply(model);
 
 		//Should automatically update the model
 		var input = fixture.find('input');
@@ -123,7 +123,7 @@
 		input[0].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.field === 'one', 'Model value not updated');
 		ok(model.out === 'two', 'Model value updated');
@@ -151,8 +151,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('tasks-list');
-		vm.apply(model);
+		var view = new rebind.View('tasks-list');
+		view.apply(model);
 
 		//Should automatically update the model
 		var input = fixture.find('input');
@@ -168,7 +168,7 @@
 		input[1].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.tasks[1].desc === 'updated', 'Model value updated');
 	});
@@ -217,8 +217,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('robot-template');
-		vm.apply(model);
+		var view = new rebind.View('robot-template');
+		view.apply(model);
 
 		var input = $(fixture).find('#robot-clive input');
 
@@ -239,7 +239,7 @@
 		input[1].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.robots[1].tasks[1].desc === 'updated', $(fixture).html());
 	});
@@ -290,8 +290,8 @@
 		//Reset because qunit-fixture is always the same id
 		rebind.reset();
 		
-		var vm = rebind.create('robot-table');
-		vm.apply(model);
+		var view = new rebind.View('robot-table');
+		view.apply(model);
 
 		var input = $(fixture).find('#robot-clive input');
 
@@ -310,7 +310,7 @@
 		input[1].dispatchEvent(evt);
 
 		//Clear handlers for following test
-		vm.detach();
+		view.detach();
 
 		ok(model.robots[1].tasks[1].desc === 'updated', $(fixture).html());
 	});
